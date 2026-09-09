@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ひとつだけの花火</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --night:#0b1220;
+  --gold:#e8b959;
+  --ember:#c1392b;
+  --text:#f4ede0;
+  --muted:#8b96ad;
+  --border:rgba(244,237,224,0.14);
+  --panel:rgba(11,18,32,0.6);
+}
+html,body{height:100%;margin:0;}
+body{
+  background:var(--night);
+  color:var(--text);
+  font-family:'Zen Kaku Gothic New','Hiragino Sans',sans-serif;
+  overflow:hidden;
+}
+#sky{position:fixed;inset:0;width:100%;height:100%;display:block;}
+
+.brand{
+  position:fixed; top:20px; left:24px;
+  font-family:'Shippori Mincho',serif;
+  font-size:18px;
+  letter-spacing:.05em;
+  color:var(--text);
+  opacity:.9;
+  z-index:2;
+}
+
+.ui-overlay{
+  position:fixed; left:0; right:0; bottom:0;
+  z-index:2;
+  padding:20px 20px calc(20px + env(safe-area-inset-bottom));
+  background:linear-gradient(to top, rgba(11,18,32,0.85), rgba(11,18,32,0));
+}
+
+.caption{
+  max-width:480px; margin:0 auto 14px;
+  text-align:center;
+  font-family:'Shippori Mincho',serif;
+  font-size:17px;
+  color:var(--gold);
+  opacity:0;
+  transition:opacity .8s ease;
+}
+.caption.show{opacity:1;}
+
+.control-bar{
+  max-width:480px; margin:0 auto;
+  display:flex; gap:8px;
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:999px;
+  padding:8px 8px 8px 18px;
+  backdrop-filter:blur(6px);
+}
+#wish{
+  flex:1; background:transparent; border:none; outline:none;
+  color:var(--text); font-family:inherit; font-size:14px;
+}
+#wish::placeholder{color:var(--muted);}
+
+button.primary{
+  background:var(--ember);
+  color:var(--text);
+  border:none; border-radius:999px;
+  padding:10px 22px;
+  font-family:inherit; font-size:14px;
+  cursor:pointer;
+  white-space:nowrap;
+}
+button.primary:hover{background:#a83022;}
+button.primary:disabled{opacity:.5;cursor:not-allowed;}
+
+.error{
+  max-width:480px;margin:8px auto 0;text-align:center;
+  color:var(--gold); font-size:12px; opacity:.85;
+}
+.hint{
+  max-width:480px;margin:8px auto 0 0;text-align:center;
+  color:var(--muted); font-size:11px;
+}
+</style>
+</head>
+<body>
+
+<canvas id="sky"></canvas>
+<div class="brand">ひとつだけの花火</div>
+
+<div class="ui-overlay">
+  <div class="caption" id="caption"></div>
+  <div class="control-bar">
+    <input type="text" id="wish" maxlength="40" aria-label="今の気持ちや願い" placeholder="今の気持ちや願いをひとこと（例：新しい一歩を踏み出したい）">
+    <button class="primary" id="btn-launch">打ち上げる</button>
+  </div>
+  <div class="error" id="error" hidden></div>
+  <div class="hint">越後・長岡花火の「フェニックス」にちなんだ、あなただけの一発。</div>
+</div>
+
+<script>
+const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbwzGha9lri4ZgrJzXREnhprsugWsMlBvm87eJqjitUTAJHWhMiPrZgOKZBk-lkkOu4_mg/exec';
+
+const canvas = document.getElementById('sky');
+const ctx = canvas.getContext('2d');
+let W, H, DPR;
+function resize(){
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = W * DPR; canvas.height = H * DPR;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+window.addEventListener('resize', resize);
+resize();
+
+function rand(min, max){ return Math.random() * (max - min) + min; }
+function pick(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
+
+class Particle{
+  constructor(x, y, vx, vy, color, life, size, physics){
+    this.x = x; this.y = y; this.vx = vx; this.vy = vy;
+    this.color = color; this.life = life; this.maxLife = life;
+    this.size = size || 2;
+    physics = physics || {};
+    this.gravity = physics.gravity ?? 70;
+    this.dragX = physics.dragX ?? 0.985;
+    this.dragY = physics.dragY ?? 0.99;
+  }
+  update(dt){
+    this.vy += this.gravity * dt;
+    this.vx *= this.dragX; this.vy *= this.dragY;
+    this.x += this.vx * dt; this.y += this.vy * dt;
+    this.life -= dt;
+  }
+  draw(ctx){
+    const t = Math.max(this.life / this.maxLife, 0);
+    ctx.globalAlpha = t;
+    ctx.fillStyle = this.color;
+    ctx.shadowColor = this.color;
+    ctx.shadowBlur = 12;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+  }
+}
+
+class Rocket{
+  constructor(x, targetY, onExplode){
+    this.x = x; this.y = H; this.targetY = targetY;
+    this.vy = -rand(260, 320);
+    this.onExplode = onExplode;
+    this.dead = false;
+  }
+  update(dt){
+    this.y += this.vy * dt;
+    particles.push(new Particle(this.x + rand(-1,1), this.y, rand(-4,4), rand(10,20), 'rgba(244,237,224,0.6)', 0.25, 1.4));
+    if(this.y <= this.targetY){
+      this.dead = true;
+      this.onExplode(this.x, this.y);
+    }
+  }
+  draw(ctx){
+    ctx.fillStyle = '#f4ede0';
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+let particles = [];
+let rockets = [];
+
+function burstPeony(x, y, colors){
+  const n = 90;
+  for(let i = 0; i < n; i++){
+    const angle = (i / n) * Math.PI * 2 + rand(-0.05, 0.05);
+    const speed = rand(90, 220);
+    particles.push(new Particle(x, y, Math.cos(angle)*speed, Math.sin(angle)*speed, pick(colors), rand(1.0,1.6), rand(1.6,2.6)));
+  }
+}
+function burstRing(x, y, colors){
+  const n = 70; const speed = rand(150, 190);
+  for(let i = 0; i < n; i++){
+    const angle = (i / n) * Math.PI * 2;
+    particles.push(new Particle(x, y, Math.cos(angle)*speed, Math.sin(angle)*speed, pick(colors), rand(1.2,1.6), 2));
+  }
+}
+function burstWillow(x, y, colors){
+  const n = 70;
+  for(let i = 0; i < n; i++){
+    const angle = (i / n) * Math.PI * 2 + rand(-0.08, 0.08);
+    const speed = rand(60, 130);
+    particles.push(new Particle(x, y, Math.cos(angle)*speed, Math.sin(angle)*speed*0.6, pick(colors), rand(2.0,2.8), rand(1.4,2.0), {gravity:150, dragX:0.99, dragY:0.995}));
+  }
+}
+function burstChrysanthemum(x, y, colors){
+  const n = 110;
+  for(let i = 0; i < n; i++){
+    const angle = (i / n) * Math.PI * 2 + rand(-0.03, 0.03);
+    const speed = rand(100, 240);
+    particles.push(new Particle(x, y, Math.cos(angle)*speed, Math.sin(angle)*speed, pick(colors), rand(1.4,2.0), rand(1.2,2.0)));
+  }
+}
+function burstPhoenix(x, y, colors){
+  burstPeony(x, y, colors.slice(0, Math.max(2, colors.length-1)));
+  setTimeout(() => {
+    const n = 140;
+    for(let i = 0; i < n; i++){
+      const angle = (i / n) * Math.PI * 2 + rand(-0.05, 0.05);
+      const speed = rand(140, 260);
+      particles.push(new Particle(x, y-10, Math.cos(angle)*speed, Math.sin(angle)*speed, pick(colors), rand(1.6,2.2), rand(1.8,2.8)));
+    }
+  }, 420);
+}
+
+function explode(x, y, spec){
+  switch(spec.shape){
+    case 'ring': burstRing(x,y,spec.colors); break;
+    case 'willow': burstWillow(x,y,spec.colors); break;
+    case 'chrysanthemum': burstChrysanthemum(x,y,spec.colors); break;
+    case 'phoenix': burstPhoenix(x,y,spec.colors); break;
+    default: burstPeony(x,y,spec.colors);
+  }
+}
+
+function launchFirework(spec){
+  const x = rand(W*0.3, W*0.7);
+  const targetY = rand(H*0.25, H*0.45);
+  rockets.push(new Rocket(x, targetY, (ex,ey) => explode(ex,ey,spec)));
+}
+
+let lastTime = performance.now();
+function loop(now){
+  const dt = Math.min((now - lastTime) / 1000, 0.05);
+  lastTime = now;
+
+  ctx.fillStyle = 'rgba(11,18,32,0.22)';
+  ctx.fillRect(0, 0, W, H);
+
+  rockets.forEach(r => r.update(dt));
+  rockets = rockets.filter(r => !r.dead);
+  rockets.forEach(r => r.draw(ctx));
+
+  particles.forEach(p => p.update(dt));
+  particles = particles.filter(p => p.life > 0);
+  particles.forEach(p => p.draw(ctx));
+
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+const input = document.getElementById('wish');
+const btn = document.getElementById('btn-launch');
+const captionEl = document.getElementById('caption');
+const errorEl = document.getElementById('error');
+
+const DEFAULT_COLORS = ['#e8b959', '#c1392b', '#f4ede0'];
+const SHAPES = ['peony','willow','ring','chrysanthemum','phoenix'];
+const FALLBACK_CAPTIONS = [
+  '小さな一歩が、大きな花になる。',
+  '灰の中から、また上がる。',
+  '越えた先に、次の光がある。'
+];
+const FALLBACK_PALETTES = [
+  ['#e8b959','#c1392b','#f4ede0'],
+  ['#7fb0c9','#e8b959','#f4ede0'],
+  ['#c1392b','#e8b959','#8b1e3f']
+];
+
+function sanitizeSpec(data){
+  let colors = Array.isArray(data.colors) ? data.colors.filter(c => /^#[0-9A-Fa-f]{6}$/.test(c)) : [];
+  if(colors.length < 2) colors = DEFAULT_COLORS;
+  const shape = SHAPES.includes(data.shape) ? data.shape : 'peony';
+  const caption = (typeof data.caption === 'string' && data.caption.trim()) ? data.caption.trim() : pick(FALLBACK_CAPTIONS);
+  return {colors, shape, caption};
+}
+
+async function callBackend(wish){
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 6000);
+  const res = await fetch(BACKEND_URL, {
+    method: 'POST',
+    headers: {'Content-Type': 'text/plain;charset=utf-8'},
+    body: JSON.stringify({wish}),
+    signal: controller.signal
+  });
+  clearTimeout(timeout);
+  return res.json();
+}
+
+btn.addEventListener('click', async () => {
+  const wish = input.value.trim();
+  errorEl.hidden = true;
+  if(!wish){
+    errorEl.textContent = '一言、気持ちや願いを入れてください。';
+    errorEl.hidden = false;
+    return;
+  }
+  btn.disabled = true; btn.textContent = '打ち上げ中…';
+  captionEl.classList.remove('show');
+
+  let spec;
+  try{
+    const data = await callBackend(wish);
+    spec = sanitizeSpec(data);
+  }catch(err){
+    // 通信できなくても、その場で見られる花火は出す(会場のWi-Fi不調対策)
+    spec = { colors: pick(FALLBACK_PALETTES), shape: pick(SHAPES), caption: pick(FALLBACK_CAPTIONS) };
+  }
+
+  launchFirework(spec);
+
+  setTimeout(() => {
+    captionEl.textContent = spec.caption;
+    captionEl.classList.add('show');
+  }, 900);
+
+  setTimeout(() => {
+    btn.disabled = false; btn.textContent = '打ち上げる';
+  }, 1800);
+});
+
+input.addEventListener('keydown', e => { if(e.key === 'Enter'){ btn.click(); } });
+</script>
+</body>
+</html>

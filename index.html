@@ -146,7 +146,7 @@ button.primary:disabled{opacity:.5;cursor:not-allowed;}
 </div>
 
 <script>
-const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbzTYS8aPXkIyuP_KSv5PU4TCLh4ALYyyKmUI1ffcNDUsUmZMnAZ518vKhLSxGq8WzfL6g/exec';
+const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbyf_LBFnTnWvfsIOAQ8PSyl1GX5QB5o9NafQq0lUN-fK2Vn_UC9lMacYoagX-1ZpYWKJQ/exec';
 
 const canvas = document.getElementById('sky');
 const ctx = canvas.getContext('2d');
@@ -383,8 +383,21 @@ const btn = document.getElementById('btn-launch');
 const captionEl = document.getElementById('caption');
 const errorEl = document.getElementById('error');
 
-const DEFAULT_COLORS = ['#e8b959', '#c1392b', '#f4ede0'];
 const SHAPES = ['peony','willow','ring','chrysanthemum','phoenix'];
+const MOOD_PALETTES = {
+  phoenix:  ['#e8b959','#c1392b','#f4ede0'], // 再生・情熱(赤×金)
+  ocean:    ['#3fa7d6','#7fdbca','#f4ede0'], // 静けさ(青×水色)
+  blossom:  ['#f78fb3','#ffd166','#ffffff'], // 喜び(ピンク×黄)
+  forest:   ['#4fd1a5','#2c7873','#f4ede0'], // 希望(緑×金)
+  dusk:     ['#a78bfa','#5b3e99','#f4ede0'], // 切なさ(紫×藍)
+  festival: ['#ffd166','#ef476f','#06d6a0'], // にぎやかさ(虹色)
+  silver:   ['#c9d6e3','#5b7ea3','#ffffff'], // 決意(銀×青白)
+  dawn:     ['#f3a683','#ffe8a3','#fff8ef'], // 新しい始まり(桃×淡黄)
+  autumn:   ['#d97b3f','#8a3324','#f4ede0'], // 郷愁(橙×臙脂)
+  storm:    ['#0f2a4a','#a7c7e7','#ffffff']  // 変化・決断(紺×閃光)
+};
+const MOOD_KEYS = Object.keys(MOOD_PALETTES);
+
 const FALLBACK_CAPTIONS = [
   '小さな一歩が、大きな花になる。',
   '灰の中から、また上がる。',
@@ -405,22 +418,21 @@ const FALLBACK_CAPTIONS_EN = [
   'Every crossing leaves you brighter.',
   'Here begins another chapter.'
 ];
-const FALLBACK_PALETTES = [
-  ['#e8b959','#c1392b','#f4ede0'],
-  ['#7fb0c9','#e8b959','#f4ede0'],
-  ['#c1392b','#e8b959','#8b1e3f']
-];
 
 // 日本語(ひらがな・カタカナ・漢字)を含まなければ、英語など他言語とみなす簡易判定
 function looksJapanese(text){
   return /[\u3040-\u30ff\u3400-\u9fff]/.test(text);
 }
 
-function sanitizeSpec(data){
-  let colors = Array.isArray(data.colors) ? data.colors.filter(c => /^#[0-9A-Fa-f]{6}$/.test(c)) : [];
-  if(colors.length < 2) colors = DEFAULT_COLORS;
-  const shape = SHAPES.includes(data.shape) ? data.shape : 'peony';
-  const caption = (typeof data.caption === 'string' && data.caption.trim()) ? data.caption.trim() : pick(FALLBACK_CAPTIONS);
+function sanitizeSpec(data, wish){
+  const moodKey = (typeof data.mood === 'string') ? data.mood.trim().toLowerCase() : '';
+  const colors = MOOD_PALETTES[moodKey] || MOOD_PALETTES[pick(MOOD_KEYS)];
+
+  const shapeKey = (typeof data.shape === 'string') ? data.shape.trim().toLowerCase() : '';
+  const shape = SHAPES.includes(shapeKey) ? shapeKey : pick(SHAPES);
+
+  const fallbackCaptions = looksJapanese(wish || '') ? FALLBACK_CAPTIONS : FALLBACK_CAPTIONS_EN;
+  const caption = (typeof data.caption === 'string' && data.caption.trim()) ? data.caption.trim() : pick(fallbackCaptions);
   return {colors, shape, caption};
 }
 
@@ -451,11 +463,11 @@ btn.addEventListener('click', async () => {
   let spec;
   try{
     const data = await callBackend(wish);
-    spec = sanitizeSpec(data);
+    spec = sanitizeSpec(data, wish);
   }catch(err){
     // 通信できなくても、その場で見られる花火は出す(会場のWi-Fi不調対策)
     const fallbackCaptions = looksJapanese(wish) ? FALLBACK_CAPTIONS : FALLBACK_CAPTIONS_EN;
-    spec = { colors: pick(FALLBACK_PALETTES), shape: pick(SHAPES), caption: pick(fallbackCaptions) };
+    spec = { colors: MOOD_PALETTES[pick(MOOD_KEYS)], shape: pick(SHAPES), caption: pick(fallbackCaptions) };
   }
 
   launchFirework(spec);

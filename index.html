@@ -118,6 +118,44 @@ button.primary:disabled{opacity:.5;cursor:not-allowed;}
   display:flex; align-items:center; justify-content:center;
   cursor:pointer; font-size:14px;
 }
+.info-btn{
+  position:fixed; top:18px; right:66px; z-index:2;
+  background:transparent; border:1px solid var(--border);
+  color:var(--text); border-radius:999px;
+  width:34px; height:34px;
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer; font-size:14px; font-family:'Shippori Mincho',serif;
+}
+
+.modal-backdrop{
+  position:fixed; inset:0; z-index:5;
+  background:rgba(0,0,0,0.6);
+  display:flex; align-items:center; justify-content:center;
+  padding:24px;
+}
+.modal-backdrop[hidden]{display:none;}
+.modal-card{
+  max-width:420px;
+  background:#141f33;
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:24px;
+  color:var(--text);
+}
+.modal-card h2{font-size:18px;margin:0 0 12px;}
+.modal-card p{font-size:13px;line-height:1.9;color:var(--muted);margin:0 0 16px;}
+.modal-card button{
+  background:var(--ember); color:var(--text); border:none;
+  border-radius:999px; padding:8px 18px; font-family:inherit; font-size:13px; cursor:pointer;
+}
+
+.save-btn{
+  display:none;
+  margin:0 auto 14px; max-width:480px;
+  background:transparent; border:1px solid var(--border); color:var(--text);
+  border-radius:999px; padding:6px 16px; font-family:inherit; font-size:12px; cursor:pointer;
+}
+.save-btn.show{display:block;}
 
 @media (max-width:420px){
   .control-bar{flex-wrap:wrap;}
@@ -131,10 +169,20 @@ button.primary:disabled{opacity:.5;cursor:not-allowed;}
 
 <canvas id="sky"></canvas>
 <div class="brand">ひとつだけの花火</div>
+<button class="info-btn" id="btn-info" aria-label="このアプリについて" title="このアプリについて">ⓘ</button>
 <button class="mute-btn" id="btn-mute" aria-label="音を消す/出す" title="音を消す/出す">🔊</button>
+
+<div class="modal-backdrop" id="info-modal" hidden>
+  <div class="modal-card">
+    <h2>「越」と、この花火について</h2>
+    <p>長岡花火の「フェニックス」は、太平洋戦争の長岡空襲、そして2004年の中越地震——地名にそのまま「越」の字が入っています——からの復興を象徴する一発です。長岡にとって「越える」は比喩ではなく、実際に街が歩んできた歴史そのもの。このアプリは、その精神をAIとともに一人ひとりに届けます。今の気持ちや願いをひとこと入力すると、AIがその言葉を読み取り、色・形・詩的な一言に翻訳して、あなただけの花火を打ち上げます。</p>
+    <button id="btn-info-close">閉じる</button>
+  </div>
+</div>
 
 <div class="ui-overlay">
   <div class="caption" id="caption"></div>
+  <button class="save-btn" id="btn-save">画像として保存する</button>
   <div class="hint">例：「新しい一歩を踏み出したい」のように、ひとこと。マイクでも話せます。</div>
   <div class="control-bar">
     <input type="text" id="wish" maxlength="60" aria-label="今の気持ちや願い" placeholder="今の気持ちや願いを一言で">
@@ -146,7 +194,7 @@ button.primary:disabled{opacity:.5;cursor:not-allowed;}
 </div>
 
 <script>
-const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbyf_LBFnTnWvfsIOAQ8PSyl1GX5QB5o9NafQq0lUN-fK2Vn_UC9lMacYoagX-1ZpYWKJQ/exec';
+const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbzxKnYoSq7HLdXmBabUPEcU4tzEH8ucgQTzMQjcvHo0FLfXgn1VcvHiqWwFLxQxnKC9gw/exec';
 
 const canvas = document.getElementById('sky');
 const ctx = canvas.getContext('2d');
@@ -382,6 +430,7 @@ const input = document.getElementById('wish');
 const btn = document.getElementById('btn-launch');
 const captionEl = document.getElementById('caption');
 const errorEl = document.getElementById('error');
+const saveBtn = document.getElementById('btn-save');
 
 const SHAPES = ['peony','willow','ring','chrysanthemum','phoenix'];
 const MOOD_PALETTES = {
@@ -459,6 +508,7 @@ btn.addEventListener('click', async () => {
   }
   btn.disabled = true; btn.textContent = '打ち上げ中…';
   captionEl.classList.remove('show');
+  saveBtn.classList.remove('show');
 
   let spec;
   try{
@@ -475,6 +525,7 @@ btn.addEventListener('click', async () => {
   setTimeout(() => {
     captionEl.textContent = spec.caption;
     captionEl.classList.add('show');
+    saveBtn.classList.add('show');
   }, 1500);
 
   setTimeout(() => {
@@ -530,6 +581,37 @@ if(SpeechRecognitionImpl){
 }else{
   micBtn.hidden = true; // 音声認識に対応していないブラウザでは非表示
 }
+
+// ---- このアプリについて (情報モーダル) ----
+const infoBtn = document.getElementById('btn-info');
+const infoModal = document.getElementById('info-modal');
+const infoClose = document.getElementById('btn-info-close');
+infoBtn.addEventListener('click', () => { infoModal.hidden = false; });
+infoClose.addEventListener('click', () => { infoModal.hidden = true; });
+infoModal.addEventListener('click', (e) => { if(e.target === infoModal) infoModal.hidden = true; });
+window.addEventListener('keydown', (e) => { if(e.key === 'Escape') infoModal.hidden = true; });
+
+// ---- 画像として保存する ----
+saveBtn.addEventListener('click', () => {
+  const off = document.createElement('canvas');
+  off.width = canvas.width;
+  off.height = canvas.height;
+  const octx = off.getContext('2d');
+  octx.drawImage(canvas, 0, 0);
+  octx.scale(DPR, DPR);
+  octx.textAlign = 'center';
+  octx.shadowColor = 'rgba(0,0,0,0.7)';
+  octx.shadowBlur = 10;
+  octx.fillStyle = '#f4ede0';
+  octx.font = '600 22px "Shippori Mincho", serif';
+  const text = captionEl.textContent || '';
+  octx.fillText(text, W / 2, H - 48, W - 80);
+
+  const link = document.createElement('a');
+  link.download = 'hitotsu-dake-no-hanabi.png';
+  link.href = off.toDataURL('image/png');
+  link.click();
+});
 </script>
 </body>
 </html>

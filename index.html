@@ -194,7 +194,7 @@ button.primary:disabled{opacity:.5;cursor:not-allowed;}
 </div>
 
 <script>
-const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbzxKnYoSq7HLdXmBabUPEcU4tzEH8ucgQTzMQjcvHo0FLfXgn1VcvHiqWwFLxQxnKC9gw/exec';
+const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbwVxUaWPL1eDfWAdkHMRyH8_9FBBM0yl1Uwp4Syp9xE1xJqayYo1usDJ6ZnUJC4gLyGTw/exec';
 
 const canvas = document.getElementById('sky');
 const ctx = canvas.getContext('2d');
@@ -277,6 +277,7 @@ class Particle{
     this.gravity = physics.gravity ?? 70;
     this.dragX = physics.dragX ?? 0.985;
     this.dragY = physics.dragY ?? 0.99;
+    this.strobe = physics.strobe || false;
   }
   update(dt){
     this.vy += this.gravity * dt;
@@ -285,6 +286,7 @@ class Particle{
     this.life -= dt;
   }
   draw(ctx){
+    if(this.strobe && Math.sin(this.life * 45) < 0) return; // 明滅させる
     const t = Math.max(this.life / this.maxLife, 0);
     ctx.globalAlpha = t;
     ctx.fillStyle = this.color;
@@ -377,25 +379,178 @@ function burstPhoenix(x, y, colors){
   }, 420);
 }
 
+// 冠菊: 柳よりさらにゆっくり長く尾を引く、しっとりした落ち方
+function burstKamuro(x, y, colors){
+  const n = 130;
+  for(let i = 0; i < n; i++){
+    const angle = (i / n) * Math.PI * 2 + rand(-0.06, 0.06);
+    const speed = rand(50, 100);
+    particles.push(new Particle(x, y, Math.cos(angle)*speed, Math.sin(angle)*speed, pick(colors), rand(2.6,3.4), rand(1.6,2.2), {gravity:170, dragX:0.992, dragY:0.997}));
+  }
+}
+
+// クロセット: 一次爆発の粒がしばらくしてもう一度小さく弾ける
+function burstCrossette(x, y, colors){
+  const n = 24;
+  const g = 60, dragX = 0.985, dragY = 0.99;
+  for(let i = 0; i < n; i++){
+    const angle = (i / n) * Math.PI * 2 + rand(-0.05, 0.05);
+    const speed = rand(120, 220);
+    const vx = Math.cos(angle) * speed, vy = Math.sin(angle) * speed;
+    particles.push(new Particle(x, y, vx, vy, pick(colors), 1.0, rand(2.0,2.6), {gravity:g, dragX, dragY}));
+    const t = 0.55;
+    const fx = x + vx * t;
+    const fy = y + vy * t + 0.5 * g * t * t;
+    setTimeout(() => {
+      const m = 5;
+      for(let j = 0; j < m; j++){
+        const a2 = (j / m) * Math.PI * 2 + rand(-0.2, 0.2);
+        const s2 = rand(50, 110);
+        particles.push(new Particle(fx, fy, Math.cos(a2)*s2, Math.sin(a2)*s2, pick(colors), rand(0.6,0.9), rand(1.4,2.0), {gravity:70, dragX:0.98, dragY:0.985}));
+      }
+    }, t * 1000);
+  }
+}
+
+// ストロボ: 明滅しながら瞬く
+function burstStrobe(x, y, colors){
+  const n = 100;
+  for(let i = 0; i < n; i++){
+    const angle = (i / n) * Math.PI * 2 + rand(-0.05, 0.05);
+    const speed = rand(100, 220);
+    particles.push(new Particle(x, y, Math.cos(angle)*speed, Math.sin(angle)*speed, pick(colors), rand(1.4,2.0), rand(2.0,3.0), {gravity:60, dragX:0.988, dragY:0.992, strobe:true}));
+  }
+}
+
+// ハート型
+function burstHeart(x, y, colors){
+  const n = 120;
+  for(let i = 0; i < n; i++){
+    const t = (i / n) * Math.PI * 2;
+    const hx = 16 * Math.pow(Math.sin(t), 3);
+    const hy = -(13*Math.cos(t) - 5*Math.cos(2*t) - 2*Math.cos(3*t) - Math.cos(4*t));
+    const mag = Math.sqrt(hx*hx + hy*hy) || 1;
+    const speed = rand(150, 190) * (mag / 17);
+    particles.push(new Particle(x, y, (hx/mag)*speed, (hy/mag)*speed, pick(colors), rand(1.2,1.6), rand(2.2,3.0), {gravity:40, dragX:0.99, dragY:0.994}));
+  }
+}
+
+// 星型 (5方向に伸びる花のような輪郭)
+function burstStar(x, y, colors){
+  const n = 130;
+  for(let i = 0; i < n; i++){
+    const angle = (i / n) * Math.PI * 2 + rand(-0.02, 0.02);
+    const r = 0.55 + 0.45 * Math.cos(5 * angle);
+    const speed = rand(160, 260) * r;
+    particles.push(new Particle(x, y, Math.cos(angle)*speed, Math.sin(angle)*speed, pick(colors), rand(1.2,1.7), rand(2.2,3.2), {gravity:55, dragX:0.988, dragY:0.992}));
+  }
+}
+
+// 螺旋: 少しずつ回転しながら広がる
+function burstSpiral(x, y, colors){
+  const groups = 24, perGroup = 5;
+  for(let g = 0; g < groups; g++){
+    setTimeout(() => {
+      const baseAngle = g * 0.5;
+      for(let j = 0; j < perGroup; j++){
+        const angle = baseAngle + (j / perGroup) * Math.PI * 2;
+        const speed = rand(130, 200);
+        particles.push(new Particle(x, y, Math.cos(angle)*speed, Math.sin(angle)*speed, pick(colors), rand(1.0,1.4), rand(1.8,2.4), {gravity:55, dragX:0.988, dragY:0.992}));
+      }
+    }, g * 25);
+  }
+}
+
+// 二重リング
+function burstDoubleRing(x, y, colors){
+  const n1 = 70, n2 = 70;
+  const speed1 = rand(120, 150), speed2 = rand(220, 260);
+  for(let i = 0; i < n1; i++){
+    const angle = (i / n1) * Math.PI * 2;
+    particles.push(new Particle(x, y, Math.cos(angle)*speed1, Math.sin(angle)*speed1, pick(colors), rand(1.3,1.7), 2.4, {gravity:55, dragX:0.988, dragY:0.992}));
+  }
+  setTimeout(() => {
+    for(let i = 0; i < n2; i++){
+      const angle = (i / n2) * Math.PI * 2 + 0.05;
+      particles.push(new Particle(x, y, Math.cos(angle)*speed2, Math.sin(angle)*speed2, pick(colors), rand(1.3,1.8), 2.6, {gravity:55, dragX:0.988, dragY:0.992}));
+    }
+  }, 150);
+}
+
+// 椰子: 数は少なく、太く大きく弧を描いて垂れる
+function burstPalm(x, y, colors){
+  const n = 16;
+  for(let i = 0; i < n; i++){
+    const angle = (i / n) * Math.PI * 2 + rand(-0.05, 0.05);
+    const speed = rand(180, 260);
+    particles.push(new Particle(x, y, Math.cos(angle)*speed, Math.sin(angle)*speed, pick(colors), rand(2.4,3.2), rand(3.2,4.2), {gravity:170, dragX:0.992, dragY:0.996}));
+  }
+}
+
+// 彗星: 少数だが速く尾を引く
+function burstComet(x, y, colors){
+  const n = 8;
+  for(let i = 0; i < n; i++){
+    const angle = (i / n) * Math.PI * 2 + rand(-0.1, 0.1);
+    const speed = rand(260, 360);
+    particles.push(new Particle(x, y, Math.cos(angle)*speed, Math.sin(angle)*speed, pick(colors), rand(1.6,2.2), rand(3.4,4.4), {gravity:40, dragX:0.995, dragY:0.997}));
+  }
+}
+
+// 虹色リング: ムードの色を無視し、七色で打ち上げる特別枠
+const RAINBOW_COLORS = ['#ff595e','#ffca3a','#8ac926','#1982c4','#6a4c93','#ff924c'];
+function burstRainbow(x, y, colors){
+  const n = 140;
+  for(let i = 0; i < n; i++){
+    const angle = (i / n) * Math.PI * 2 + rand(-0.04, 0.04);
+    const speed = rand(140, 280);
+    particles.push(new Particle(x, y, Math.cos(angle)*speed, Math.sin(angle)*speed, pick(RAINBOW_COLORS), rand(1.3,1.9), rand(2.2,3.2), {gravity:55, dragX:0.988, dragY:0.992}));
+  }
+}
+
 function explode(x, y, spec){
   switch(spec.shape){
     case 'ring': burstRing(x,y,spec.colors); break;
     case 'willow': burstWillow(x,y,spec.colors); break;
     case 'chrysanthemum': burstChrysanthemum(x,y,spec.colors); break;
     case 'phoenix': burstPhoenix(x,y,spec.colors); break;
+    case 'kamuro': burstKamuro(x,y,spec.colors); break;
+    case 'crossette': burstCrossette(x,y,spec.colors); break;
+    case 'strobe': burstStrobe(x,y,spec.colors); break;
+    case 'heart': burstHeart(x,y,spec.colors); break;
+    case 'star': burstStar(x,y,spec.colors); break;
+    case 'spiral': burstSpiral(x,y,spec.colors); break;
+    case 'doublering': burstDoubleRing(x,y,spec.colors); break;
+    case 'palm': burstPalm(x,y,spec.colors); break;
+    case 'comet': burstComet(x,y,spec.colors); break;
+    case 'rainbow': burstRainbow(x,y,spec.colors); break;
     default: burstPeony(x,y,spec.colors);
   }
+}
+
+// Box-Muller法で正規分布の乱数を作る(平均・標準偏差を指定)
+function randomNormal(mean, sd){
+  let u1 = Math.random();
+  const u2 = Math.random();
+  if(u1 < 1e-9) u1 = 1e-9;
+  const z0 = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+  return mean + z0 * sd;
+}
+// 打ち上げ発数: 5を最頻値とする正規分布、最小1発・最大10発
+function pickShotCount(){
+  const n = Math.round(randomNormal(5, 1.8));
+  return Math.min(10, Math.max(1, n));
 }
 
 // 1回の入力につき、複数発を打ち上げる小さなショーにする(単発だと寂しいため)
 function launchFirework(spec){
   const isPhoenix = spec.shape === 'phoenix';
-  const shots = isPhoenix ? 2 : (3 + Math.floor(Math.random() * 2));
-  const gap = isPhoenix ? 280 : 220;
+  const shots = pickShotCount();
+  const gap = isPhoenix ? 260 : 200;
   for(let i = 0; i < shots; i++){
     setTimeout(() => {
-      const x = rand(W*0.22, W*0.78);
-      const targetY = rand(H*0.22, H*0.42);
+      const x = rand(W*0.15, W*0.85);
+      const targetY = rand(H*0.18, H*0.45);
       playLaunch();
       rockets.push(new Rocket(x, targetY, (ex,ey) => {
         explode(ex,ey,spec);
@@ -407,6 +562,8 @@ function launchFirework(spec){
 }
 
 let lastTime = performance.now();
+let snapshotDataUrl = null;
+let lastSnapshotAt = 0;
 function loop(now){
   const dt = Math.min((now - lastTime) / 1000, 0.05);
   lastTime = now;
@@ -420,7 +577,16 @@ function loop(now){
 
   particles.forEach(p => p.update(dt));
   particles = particles.filter(p => p.life > 0);
+  if(particles.length > 2400){
+    particles.splice(0, particles.length - 2400); // 発数が多いときの保険(重くなりすぎない上限)
+  }
   particles.forEach(p => p.draw(ctx));
+
+  // 花火が賑やかな瞬間を定期的にスナップショットしておく(保存ボタンで使う)
+  if(particles.length > 25 && now - lastSnapshotAt > 150){
+    snapshotDataUrl = canvas.toDataURL('image/png');
+    lastSnapshotAt = now;
+  }
 
   requestAnimationFrame(loop);
 }
@@ -432,7 +598,7 @@ const captionEl = document.getElementById('caption');
 const errorEl = document.getElementById('error');
 const saveBtn = document.getElementById('btn-save');
 
-const SHAPES = ['peony','willow','ring','chrysanthemum','phoenix'];
+const SHAPES = ['peony','willow','ring','chrysanthemum','phoenix','kamuro','crossette','strobe','heart','star','spiral','doublering','palm','comet','rainbow'];
 const MOOD_PALETTES = {
   phoenix:  ['#e8b959','#c1392b','#f4ede0'], // 再生・情熱(赤×金)
   ocean:    ['#3fa7d6','#7fdbca','#f4ede0'], // 静けさ(青×水色)
@@ -509,6 +675,7 @@ btn.addEventListener('click', async () => {
   btn.disabled = true; btn.textContent = '打ち上げ中…';
   captionEl.classList.remove('show');
   saveBtn.classList.remove('show');
+  snapshotDataUrl = null;
 
   let spec;
   try{
@@ -520,17 +687,18 @@ btn.addEventListener('click', async () => {
     spec = { colors: MOOD_PALETTES[pick(MOOD_KEYS)], shape: pick(SHAPES), caption: pick(fallbackCaptions) };
   }
 
-  launchFirework(spec);
+  const shots = launchFirework(spec);
+  const showDuration = 1400 + shots * 260; // 発数に応じてショーの長さを見積もる
 
   setTimeout(() => {
     captionEl.textContent = spec.caption;
     captionEl.classList.add('show');
     saveBtn.classList.add('show');
-  }, 1500);
+  }, showDuration);
 
   setTimeout(() => {
     btn.disabled = false; btn.textContent = '打ち上げる';
-  }, 3200);
+  }, showDuration + 1400);
 });
 
 input.addEventListener('keydown', e => { if(e.key === 'Enter'){ btn.click(); } });
@@ -597,20 +765,25 @@ saveBtn.addEventListener('click', () => {
   off.width = canvas.width;
   off.height = canvas.height;
   const octx = off.getContext('2d');
-  octx.drawImage(canvas, 0, 0);
-  octx.scale(DPR, DPR);
-  octx.textAlign = 'center';
-  octx.shadowColor = 'rgba(0,0,0,0.7)';
-  octx.shadowBlur = 10;
-  octx.fillStyle = '#f4ede0';
-  octx.font = '600 22px "Shippori Mincho", serif';
-  const text = captionEl.textContent || '';
-  octx.fillText(text, W / 2, H - 48, W - 80);
+  const img = new Image();
+  img.onload = () => {
+    octx.drawImage(img, 0, 0);
+    octx.scale(DPR, DPR);
+    octx.textAlign = 'center';
+    octx.shadowColor = 'rgba(0,0,0,0.7)';
+    octx.shadowBlur = 10;
+    octx.fillStyle = '#f4ede0';
+    octx.font = '600 22px "Shippori Mincho", serif';
+    const text = captionEl.textContent || '';
+    octx.fillText(text, W / 2, H - 48, W - 80);
 
-  const link = document.createElement('a');
-  link.download = 'hitotsu-dake-no-hanabi.png';
-  link.href = off.toDataURL('image/png');
-  link.click();
+    const link = document.createElement('a');
+    link.download = 'hitotsu-dake-no-hanabi.png';
+    link.href = off.toDataURL('image/png');
+    link.click();
+  };
+  // 賑やかな瞬間に自動で撮っておいたスナップショットを使う(クリック時点の画面はもう暗いことが多いため)
+  img.src = snapshotDataUrl || canvas.toDataURL('image/png');
 });
 </script>
 </body>

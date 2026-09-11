@@ -194,10 +194,13 @@ button.primary:disabled{opacity:.5;cursor:not-allowed;}
 </div>
 
 <script>
-const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbwVxUaWPL1eDfWAdkHMRyH8_9FBBM0yl1Uwp4Syp9xE1xJqayYo1usDJ6ZnUJC4gLyGTw/exec';
+const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbz4DjIOS4Ewo8t6AwN89D-k5f64CPhHSXlmbJH_CSVje7BZUYxCIl6OM7MpeB-NN_uhXw/exec';
 
 const canvas = document.getElementById('sky');
 const ctx = canvas.getContext('2d');
+const snapshotCanvas = document.createElement('canvas'); // 「保存する」用に裏で持っておくキャンバス
+const snapCtx = snapshotCanvas.getContext('2d');
+let snapshotReady = false;
 let W, H, DPR;
 function resize(){
   DPR = Math.min(window.devicePixelRatio || 1, 2);
@@ -205,6 +208,9 @@ function resize(){
   canvas.width = W * DPR; canvas.height = H * DPR;
   canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  snapshotCanvas.width = canvas.width;
+  snapshotCanvas.height = canvas.height;
+  snapshotReady = false;
 }
 window.addEventListener('resize', resize);
 resize();
@@ -562,7 +568,6 @@ function launchFirework(spec){
 }
 
 let lastTime = performance.now();
-let snapshotDataUrl = null;
 let lastSnapshotAt = 0;
 function loop(now){
   const dt = Math.min((now - lastTime) / 1000, 0.05);
@@ -582,9 +587,11 @@ function loop(now){
   }
   particles.forEach(p => p.draw(ctx));
 
-  // 花火が賑やかな瞬間を定期的にスナップショットしておく(保存ボタンで使う)
+  // 花火が賑やかな瞬間を定期的にコピーしておく(保存ボタンで使う)。
+  // toDataURL()は重いのでここでは使わず、軽いdrawImage()でコピーするだけにする。
   if(particles.length > 25 && now - lastSnapshotAt > 150){
-    snapshotDataUrl = canvas.toDataURL('image/png');
+    snapCtx.drawImage(canvas, 0, 0);
+    snapshotReady = true;
     lastSnapshotAt = now;
   }
 
@@ -613,26 +620,36 @@ const MOOD_PALETTES = {
 };
 const MOOD_KEYS = Object.keys(MOOD_PALETTES);
 
-const FALLBACK_CAPTIONS = [
-  '小さな一歩が、大きな花になる。',
-  '灰の中から、また上がる。',
-  '越えた先に、次の光がある。',
-  '沈んだ分だけ、高く上がる。',
-  '今日の願いを、光にのせて。',
-  '暗闇があるから、光は際立つ。',
-  'ここからまた、始まっていく。',
-  '風が変わる、その前触れ。',
-  '一瞬でも、確かに咲いた。',
-  '越えるたび、少し軽くなる。'
+// キャプションは「前半句 × 後半句」の組み合わせで200パターン以上を用意する
+// (AIが生成に失敗したときのフォールバック、およびAI応答が読めなかったときに使う)
+const CAPTION_A_JA = [
+  '小さな一歩が', '灰の中から', '沈んだ分だけ', '消えていく火花も',
+  '今日の願いは', '暗闇があるから', '越えるたびに', 'たった一つの言葉が',
+  '忘れかけていた気持ちが', '夜空を見上げれば', '風向きが変わる夜は', '静けさの中にも',
+  '遠くの記憶も', 'ひとりの夜にも', '涙の数だけ', '誰かに届いた一言が'
 ];
-const FALLBACK_CAPTIONS_EN = [
-  'From the ashes, rising once more.',
-  'One small wish, one bright sky.',
-  'What falls returns as light.',
-  'Beyond the dark, a new spark.',
-  'Every crossing leaves you brighter.',
-  'Here begins another chapter.'
+const CAPTION_B_JA = [
+  '大きな花になる。', 'また上がる。', '高く上がる。', '次の光になる。',
+  '光にのせて咲く。', '光は際立つ。', '始まっていく。', 'その前触れになる。',
+  '確かに咲いた。', '少し軽くなる。', '空に描かれる。', '夜を照らす。',
+  'もう一度輝く。'
 ];
+const CAPTION_A_EN = [
+  'From the ashes,', 'One small wish,', 'Even in the dark,', 'What falls away',
+  'A single word,', 'When the wind turns,', 'In the quiet night,', 'Every crossing'
+];
+const CAPTION_B_EN = [
+  'rises once more.', 'becomes a brighter sky.', 'lights the way forward.',
+  'returns as light.', 'leaves you a little lighter.', 'begins again.'
+];
+
+function buildCaptionPool(as_, bs_){
+  const pool = [];
+  for(const a of as_){ for(const b of bs_){ pool.push(a + '、' + b); } }
+  return pool;
+}
+const FALLBACK_CAPTIONS = buildCaptionPool(CAPTION_A_JA, CAPTION_B_JA); // 16x13 = 208通り
+const FALLBACK_CAPTIONS_EN = CAPTION_A_EN.flatMap(a => CAPTION_B_EN.map(b => a + ' ' + b)); // 8x6 = 48通り
 
 // 日本語(ひらがな・カタカナ・漢字)を含まなければ、英語など他言語とみなす簡易判定
 function looksJapanese(text){
@@ -675,7 +692,7 @@ btn.addEventListener('click', async () => {
   btn.disabled = true; btn.textContent = '打ち上げ中…';
   captionEl.classList.remove('show');
   saveBtn.classList.remove('show');
-  snapshotDataUrl = null;
+  snapshotReady = false;
 
   let spec;
   try{
@@ -765,25 +782,22 @@ saveBtn.addEventListener('click', () => {
   off.width = canvas.width;
   off.height = canvas.height;
   const octx = off.getContext('2d');
-  const img = new Image();
-  img.onload = () => {
-    octx.drawImage(img, 0, 0);
-    octx.scale(DPR, DPR);
-    octx.textAlign = 'center';
-    octx.shadowColor = 'rgba(0,0,0,0.7)';
-    octx.shadowBlur = 10;
-    octx.fillStyle = '#f4ede0';
-    octx.font = '600 22px "Shippori Mincho", serif';
-    const text = captionEl.textContent || '';
-    octx.fillText(text, W / 2, H - 48, W - 80);
+  octx.drawImage(snapshotReady ? snapshotCanvas : canvas, 0, 0);
+  octx.scale(DPR, DPR);
+  octx.textAlign = 'center';
+  octx.shadowColor = 'rgba(0,0,0,0.7)';
+  octx.shadowBlur = 10;
+  octx.fillStyle = '#f4ede0';
+  octx.font = '600 22px "Shippori Mincho", serif';
+  const text = captionEl.textContent || '';
+  octx.fillText(text, W / 2, H - 48, W - 80);
 
-    const link = document.createElement('a');
-    link.download = 'hitotsu-dake-no-hanabi.png';
-    link.href = off.toDataURL('image/png');
-    link.click();
-  };
-  // 賑やかな瞬間に自動で撮っておいたスナップショットを使う(クリック時点の画面はもう暗いことが多いため)
-  img.src = snapshotDataUrl || canvas.toDataURL('image/png');
+  const link = document.createElement('a');
+  link.download = 'hitotsu-dake-no-hanabi.png';
+  link.href = off.toDataURL('image/png');
+  document.body.appendChild(link); // ダウンロードが確実に発火するよう一旦DOMに入れる
+  link.click();
+  document.body.removeChild(link);
 });
 </script>
 </body>

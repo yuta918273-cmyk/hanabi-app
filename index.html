@@ -254,6 +254,12 @@ const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbzwXMPAbbVKmH3aXdiK
 
 const canvas = document.getElementById('sky');
 const ctx = canvas.getContext('2d');
+
+// 長時間露光保存用オフスクリーンCanvas（ショー全体の光の軌跡を蓄積）
+const snapshotCanvas = document.createElement('canvas');
+const snapCtx = snapshotCanvas.getContext('2d');
+let snapshotReady = false;
+
 let W, H, DPR;
 
 function resize(){
@@ -265,6 +271,11 @@ function resize(){
   canvas.style.width = W + 'px';
   canvas.style.height = H + 'px';
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+  snapshotCanvas.width = canvas.width;
+  snapshotCanvas.height = canvas.height;
+  snapCtx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
   initStars();
 }
 window.addEventListener('resize', resize);
@@ -290,67 +301,108 @@ function initStars(){
 
 function getRiverY(){ return H * 0.78; }
 
-function drawBackground(now){
-  const skyGrad = ctx.createLinearGradient(0, 0, 0, getRiverY());
+function drawBackgroundOn(targetCtx, now, isSnapshot = false){
+  const ry = getRiverY();
+
+  const skyGrad = targetCtx.createLinearGradient(0, 0, 0, ry);
   skyGrad.addColorStop(0, '#040711');
   skyGrad.addColorStop(0.6, '#081024');
   skyGrad.addColorStop(1, '#0e1b38');
-  ctx.fillStyle = skyGrad;
-  ctx.fillRect(0, 0, W, getRiverY());
+  targetCtx.fillStyle = skyGrad;
+  targetCtx.fillRect(0, 0, W, ry);
 
   for(const s of stars){
-    const twinkle = 0.4 + 0.6 * Math.sin((now / 1000) * s.speed + s.phase);
-    ctx.globalAlpha = twinkle;
-    ctx.fillStyle = '#f8f5ee';
-    ctx.beginPath();
-    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-    ctx.fill();
+    const twinkle = isSnapshot ? 0.85 : (0.4 + 0.6 * Math.sin((now / 1000) * s.speed + s.phase));
+    targetCtx.globalAlpha = twinkle;
+    targetCtx.fillStyle = '#f8f5ee';
+    targetCtx.beginPath();
+    targetCtx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    targetCtx.fill();
   }
-  ctx.globalAlpha = 1;
+  targetCtx.globalAlpha = 1;
 
-  const ry = getRiverY();
-  ctx.fillStyle = '#060b17';
-  ctx.beginPath();
-  ctx.moveTo(0, ry);
-  ctx.lineTo(0, ry - 18);
-  ctx.bezierCurveTo(W * 0.25, ry - 32, W * 0.4, ry - 14, W * 0.6, ry - 24);
-  ctx.bezierCurveTo(W * 0.75, ry - 30, W * 0.88, ry - 16, W, ry - 20);
-  ctx.lineTo(W, ry);
-  ctx.closePath();
-  ctx.fill();
+  // 山並みシルエット
+  targetCtx.fillStyle = '#060b17';
+  targetCtx.beginPath();
+  targetCtx.moveTo(0, ry);
+  targetCtx.lineTo(0, ry - 18);
+  targetCtx.bezierCurveTo(W * 0.25, ry - 32, W * 0.4, ry - 14, W * 0.6, ry - 24);
+  targetCtx.bezierCurveTo(W * 0.75, ry - 30, W * 0.88, ry - 16, W, ry - 20);
+  targetCtx.lineTo(W, ry);
+  targetCtx.closePath();
+  targetCtx.fill();
 
-  const riverGrad = ctx.createLinearGradient(0, ry, 0, H);
+  // 信濃川水面
+  const riverGrad = targetCtx.createLinearGradient(0, ry, 0, H);
   riverGrad.addColorStop(0, '#070f21');
   riverGrad.addColorStop(0.4, '#050a16');
   riverGrad.addColorStop(1, '#020408');
-  ctx.fillStyle = riverGrad;
-  ctx.fillRect(0, ry, W, H - ry);
+  targetCtx.fillStyle = riverGrad;
+  targetCtx.fillRect(0, ry, W, H - ry);
 
-  ctx.strokeStyle = 'rgba(243,202,101,0.12)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(0, ry);
-  ctx.lineTo(W, ry);
-  ctx.stroke();
+  targetCtx.strokeStyle = 'rgba(243,202,101,0.12)';
+  targetCtx.lineWidth = 1;
+  targetCtx.beginPath();
+  targetCtx.moveTo(0, ry);
+  targetCtx.lineTo(W, ry);
+  targetCtx.stroke();
 }
 
-// ---- Web Audio API（重低音＆光音の時間差シミュレーション） ----
+function initSnapshotBackground(){
+  snapCtx.save();
+  snapCtx.globalCompositeOperation = 'source-over';
+  drawBackgroundOn(snapCtx, performance.now(), true);
+  snapCtx.globalCompositeOperation = 'lighter';
+  snapCtx.restore();
+  snapshotReady = true;
+}
+
+// ---- Web Audio API（2回目以降の音消えを完全防止） ----
 let soundOn = true;
 let audioCtx = null;
+let cachedNoiseBuffer = null;
+
 function getAudioCtx(){
   if(!audioCtx){
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  }
-  if(audioCtx.state === 'suspended'){
-    audioCtx.resume();
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if(AudioContextClass){
+      audioCtx = new AudioContextClass();
+    }
   }
   return audioCtx;
 }
 
-function playLaunchSound(){
+// ユーザー操作の直前で即座にサスペンドを解除する
+function ensureAudioReady(){
   if(!soundOn) return;
   try{
     const actx = getAudioCtx();
+    if(actx && actx.state === 'suspended'){
+      actx.resume();
+    }
+  }catch(e){}
+}
+
+function getNoiseBuffer(actx){
+  if(cachedNoiseBuffer && cachedNoiseBuffer.sampleRate === actx.sampleRate){
+    return cachedNoiseBuffer;
+  }
+  const bLen = Math.floor(actx.sampleRate * 1.1);
+  const b = actx.createBuffer(1, bLen, actx.sampleRate);
+  const d = b.getChannelData(0);
+  for(let i = 0; i < bLen; i++){
+    d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bLen, 2.2);
+  }
+  cachedNoiseBuffer = b;
+  return b;
+}
+
+function playLaunchSound(){
+  if(!soundOn) return;
+  ensureAudioReady();
+  try{
+    const actx = getAudioCtx();
+    if(!actx || actx.state === 'suspended') return;
     const now = actx.currentTime;
     const osc = actx.createOscillator();
     const gain = actx.createGain();
@@ -358,7 +410,7 @@ function playLaunchSound(){
     osc.frequency.setValueAtTime(320, now);
     osc.frequency.exponentialRampToValueAtTime(1100, now + 0.65);
     gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.linearRampToValueAtTime(0.12, now + 0.1);
+    gain.gain.linearRampToValueAtTime(0.12, now + 0.08);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.7);
     osc.connect(gain).connect(actx.destination);
     osc.start(now);
@@ -368,36 +420,35 @@ function playLaunchSound(){
 
 function playExplosionSound(intensity = 1.0){
   if(!soundOn) return;
+  ensureAudioReady();
   try{
     const actx = getAudioCtx();
+    if(!actx || actx.state === 'suspended') return;
     const now = actx.currentTime;
 
+    // 1. サブベース
     const subOsc = actx.createOscillator();
     const subGain = actx.createGain();
     subOsc.type = 'sine';
     subOsc.frequency.setValueAtTime(85, now);
-    subOsc.frequency.exponentialRampToValueAtTime(28, now + 0.5);
-    subGain.gain.setValueAtTime(0.5 * intensity, now);
-    subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+    subOsc.frequency.exponentialRampToValueAtTime(28, now + 0.45);
+    subGain.gain.setValueAtTime(0.48 * intensity, now);
+    subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.52);
     subOsc.connect(subGain).connect(actx.destination);
     subOsc.start(now);
-    subOsc.stop(now + 0.6);
+    subOsc.stop(now + 0.55);
 
-    const bLen = Math.floor(actx.sampleRate * 1.2);
-    const b = actx.createBuffer(1, bLen, actx.sampleRate);
-    const d = b.getChannelData(0);
-    for(let i = 0; i < bLen; i++){
-      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bLen, 2.2);
-    }
+    // 2. 乾いた炸裂音
+    const b = getNoiseBuffer(actx);
     const noise = actx.createBufferSource();
     noise.buffer = b;
     const filter = actx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(1200, now);
-    filter.frequency.exponentialRampToValueAtTime(180, now + 0.8);
+    filter.frequency.setValueAtTime(1100, now);
+    filter.frequency.exponentialRampToValueAtTime(160, now + 0.75);
     const nGain = actx.createGain();
-    nGain.gain.setValueAtTime(0.35 * intensity, now);
-    nGain.gain.exponentialRampToValueAtTime(0.001, now + 1.1);
+    nGain.gain.setValueAtTime(0.32 * intensity, now);
+    nGain.gain.exponentialRampToValueAtTime(0.001, now + 1.0);
     noise.connect(filter).connect(nGain).connect(actx.destination);
     noise.start(now);
   }catch(e){}
@@ -433,17 +484,20 @@ class HanabiParticle {
     this.y += this.vy * dt;
     this.life -= dt;
   }
-  draw(targetCtx, isReflection = false){
+  draw(targetCtx, isReflection = false, isSnapshot = false){
     if(this.strobe && Math.sin(this.life * 40) < 0) return;
     const progress = 1 - Math.max(this.life / this.maxLife, 0);
-    const alpha = isReflection ? Math.max(1 - progress, 0) * 0.35 : Math.max(1 - progress, 0);
+    const baseAlpha = isReflection ? 0.32 : 1.0;
+    const alpha = (1 - progress) * baseAlpha;
+    if(alpha <= 0.01) return;
+
     const color = progress > 0.5 ? this.endColor : this.startColor;
 
     targetCtx.save();
-    targetCtx.globalAlpha = alpha;
+    targetCtx.globalAlpha = isSnapshot ? alpha * 0.45 : alpha;
     targetCtx.fillStyle = color;
     targetCtx.shadowColor = color;
-    targetCtx.shadowBlur = isReflection ? 8 : (this.twinkle ? 24 : 16);
+    targetCtx.shadowBlur = isReflection ? 6 : (this.twinkle ? 22 : 14);
 
     let drawY = this.y;
     if(isReflection){
@@ -659,7 +713,7 @@ function loop(now){
   const dt = Math.min((now - lastTime) / 1000, 0.05);
   lastTime = now;
 
-  drawBackground(now);
+  drawBackgroundOn(ctx, now, false);
 
   rockets.forEach(r => r.update(dt));
   rockets = rockets.filter(r => !r.dead);
@@ -671,15 +725,30 @@ function loop(now){
     particles.splice(0, particles.length - 3000);
   }
 
-  particles.forEach(p => p.draw(ctx, false));
+  // 画面上の花火描画
+  particles.forEach(p => p.draw(ctx, false, false));
 
+  // 信濃川への水面反射描画
   ctx.save();
   particles.forEach(p => {
     if(p.y < getRiverY()){
-      p.draw(ctx, true);
+      p.draw(ctx, true, false);
     }
   });
   ctx.restore();
+
+  // 保存用スナップショットCanvasへ長時間露光として蓄積
+  if(snapshotReady && particles.length > 0){
+    snapCtx.save();
+    snapCtx.globalCompositeOperation = 'lighter';
+    particles.forEach(p => {
+      p.draw(snapCtx, false, true);
+      if(p.y < getRiverY()){
+        p.draw(snapCtx, true, true);
+      }
+    });
+    snapCtx.restore();
+  }
 
   requestAnimationFrame(loop);
 }
@@ -746,6 +815,9 @@ async function callBackend(wish){
 }
 
 async function handleLaunch(wishText){
+  // 通信前に同期的にAudioContextをアクティブ化（2回目以降の音消え防止）
+  ensureAudioReady();
+
   const wish = wishText.trim();
   errorEl.hidden = true;
   if(!wish){
@@ -758,6 +830,9 @@ async function handleLaunch(wishText){
   btnLaunch.textContent = '調合中…';
   resultCard.classList.remove('show');
   lastLaunchedText = wish;
+
+  // 今回のショー用の長時間露光キャンバスを初期化
+  initSnapshotBackground();
 
   let spec;
   try{
@@ -795,10 +870,20 @@ async function handleLaunch(wishText){
   }, duration + 1000);
 }
 
-btnLaunch.addEventListener('click', () => handleLaunch(input.value));
-input.addEventListener('keydown', e => { if(e.key === 'Enter') handleLaunch(input.value); });
+btnLaunch.addEventListener('click', () => {
+  ensureAudioReady();
+  handleLaunch(input.value);
+});
+
+input.addEventListener('keydown', e => {
+  if(e.key === 'Enter'){
+    ensureAudioReady();
+    handleLaunch(input.value);
+  }
+});
 
 btnAgain.addEventListener('click', () => {
+  ensureAudioReady();
   resultCard.classList.remove('show');
   controlBar.style.display = 'flex';
   presetChips.style.display = 'flex';
@@ -808,6 +893,7 @@ btnAgain.addEventListener('click', () => {
 
 document.querySelectorAll('.chip').forEach(c => {
   c.addEventListener('click', () => {
+    ensureAudioReady();
     input.value = c.getAttribute('data-wish');
     handleLaunch(input.value);
   });
@@ -817,7 +903,7 @@ const muteBtn = document.getElementById('btn-mute');
 muteBtn.addEventListener('click', () => {
   soundOn = !soundOn;
   muteBtn.textContent = soundOn ? '🔊' : '🔇';
-  if(soundOn) getAudioCtx();
+  if(soundOn) ensureAudioReady();
 });
 
 let demoTimer = null;
@@ -825,6 +911,7 @@ let isDemoRunning = false;
 const btnDemo = document.getElementById('btn-demo');
 
 function toggleDemo(){
+  ensureAudioReady();
   isDemoRunning = !isDemoRunning;
   if(isDemoRunning){
     btnDemo.style.borderColor = 'var(--gold)';
@@ -834,144 +921,4 @@ function toggleDemo(){
   }else{
     btnDemo.style.borderColor = 'var(--border)';
     btnDemo.title = '夜空の自動鑑賞モード';
-    metaTextEl.textContent = '信濃川の川面に映る、あなただけの一期一会の光。';
-    clearTimeout(demoTimer);
-  }
-}
-function runAutoDemo(){
-  if(!isDemoRunning) return;
-  const sample = pick(FALLBACK_SPECS);
-  launchSequence(sample);
-  demoTimer = setTimeout(runAutoDemo, rand(4500, 7000));
-}
-btnDemo.addEventListener('click', toggleDemo);
-
-const micBtn = document.getElementById('btn-mic');
-const SpeechRecognitionImpl = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-if(SpeechRecognitionImpl){
-  const recognition = new SpeechRecognitionImpl();
-  recognition.lang = 'ja-JP';
-  recognition.interimResults = true;
-  let listening = false;
-
-  recognition.addEventListener('result', (e) => {
-    let t = '';
-    for(let i = 0; i < e.results.length; i++){ t += e.results[i][0].transcript; }
-    input.value = t;
-  });
-  recognition.addEventListener('end', () => {
-    listening = false;
-    micBtn.classList.remove('listening');
-    if(input.value.trim()){
-      handleLaunch(input.value);
-    }
-  });
-  recognition.addEventListener('error', () => {
-    listening = false;
-    micBtn.classList.remove('listening');
-  });
-
-  micBtn.addEventListener('click', () => {
-    if(listening){ recognition.stop(); return; }
-    input.value = '';
-    errorEl.hidden = true;
-    try{
-      recognition.start();
-      listening = true;
-      micBtn.classList.add('listening');
-    }catch(err){}
-  });
-}else{
-  micBtn.hidden = true;
-}
-
-const infoBtn = document.getElementById('btn-info');
-const infoModal = document.getElementById('info-modal');
-const infoClose = document.getElementById('btn-info-close');
-infoBtn.addEventListener('click', () => { infoModal.hidden = false; });
-infoClose.addEventListener('click', () => { infoModal.hidden = true; });
-infoModal.addEventListener('click', (e) => { if(e.target === infoModal) infoModal.hidden = true; });
-
-// ---- 花火短冊・カード画像生成 (PNG保存) ----
-btnSave.addEventListener('click', () => {
-  if(!currentSpec) return;
-
-  const cardW = 1080;
-  const cardH = 1920;
-  const off = document.createElement('canvas');
-  off.width = cardW; off.height = cardH;
-  const octx = off.getContext('2d');
-
-  const grad = octx.createLinearGradient(0, 0, 0, cardH);
-  grad.addColorStop(0, '#040711');
-  grad.addColorStop(0.5, '#0a1428');
-  grad.addColorStop(1, '#020408');
-  octx.fillStyle = grad;
-  octx.fillRect(0, 0, cardW, cardH);
-
-  octx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 100, cardW, cardH * 0.65);
-
-  octx.strokeStyle = 'rgba(243,202,101,0.35)';
-  octx.lineWidth = 2;
-  octx.strokeRect(40, 40, cardW - 80, cardH - 80);
-
-  octx.fillStyle = '#f3ca65';
-  octx.font = '800 36px "Shippori Mincho", serif';
-  octx.textAlign = 'left';
-  octx.fillText('ひとつだけの花火', 80, 110);
-
-  octx.fillStyle = 'rgba(248,245,238,0.7)';
-  octx.font = '400 20px "Zen Kaku Gothic New", sans-serif';
-  octx.fillText('越後長岡・祈りと再生のAI花火', 80, 145);
-
-  const py = cardH - 580;
-  octx.fillStyle = 'rgba(7,13,26,0.85)';
-  octx.fillRect(80, py, cardW - 160, 460);
-  octx.strokeStyle = 'rgba(243,202,101,0.5)';
-  octx.lineWidth = 1.5;
-  octx.strokeRect(80, py, cardW - 160, 460);
-
-  octx.fillStyle = '#f3ca65';
-  octx.font = '700 30px "Shippori Mincho", serif';
-  octx.textAlign = 'center';
-  octx.fillText(`【 ${currentSpec.hanabiName || '八重芯変化菊 越の光'} 】`, cardW / 2, py + 70);
-
-  octx.fillStyle = 'rgba(248,245,238,0.6)';
-  octx.font = '400 22px "Zen Kaku Gothic New", sans-serif';
-  octx.fillText(`「 ${lastLaunchedText || '新しい一歩を'} 」`, cardW / 2, py + 125);
-
-  octx.fillStyle = '#ffffff';
-  octx.font = '700 36px "Shippori Mincho", serif';
-  const cap = currentSpec.caption || '';
-  octx.fillText(cap, cardW / 2, py + 210);
-
-  if(currentSpec.reason){
-    octx.fillStyle = 'rgba(248,245,238,0.75)';
-    octx.font = '400 20px "Zen Kaku Gothic New", sans-serif';
-    octx.fillText(`AI花火師より：${currentSpec.reason}`, cardW / 2, py + 280);
-  }
-
-  const today = new Date().toLocaleDateString('ja-JP');
-  octx.fillStyle = 'rgba(243,202,101,0.6)';
-  octx.font = '400 18px "Zen Kaku Gothic New", sans-serif';
-  octx.fillText(`${today} ｜ 越後長岡・信濃川河畔 ｜ 第${currentSpec.count || 1}号打上記念`, cardW / 2, py + 380);
-
-  octx.fillStyle = '#d14334';
-  octx.fillRect(cardW - 170, py + 335, 54, 54);
-  octx.fillStyle = '#ffffff';
-  octx.font = '700 24px "Shippori Mincho", serif';
-  octx.fillText('越', cardW - 143, py + 372);
-
-  const link = document.createElement('a');
-  link.download = `hanabi_${Date.now()}.png`;
-  link.href = off.toDataURL('image/png');
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-});
-
-resize();
-</script>
-</body>
-</html>
+    metaTextEl

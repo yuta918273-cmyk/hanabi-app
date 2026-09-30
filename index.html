@@ -2,116 +2,66 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>ひとつだけの花火 - 越後長岡の夜空へ</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ひとつだけの花火</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root{
   --night:#0b1220;
-  --gold:#f3ca65;
+  --gold:#e8b959;
   --ember:#c1392b;
   --text:#f4ede0;
   --muted:#8b96ad;
-  --border:rgba(244,237,224,0.16);
-  --panel:rgba(11,18,32,0.75);
+  --border:rgba(244,237,224,0.14);
+  --panel:rgba(11,18,32,0.6);
 }
-html,body{height:100%;margin:0;padding:0;}
+html,body{height:100%;margin:0;}
 body{
   background:var(--night);
   color:var(--text);
   font-family:'Zen Kaku Gothic New','Hiragino Sans',sans-serif;
   overflow:hidden;
-  user-select:none;
-  -webkit-user-select:none;
 }
-#sky{position:fixed;inset:0;width:100%;height:100%;display:block;z-index:1;}
+#sky{position:fixed;inset:0;width:100%;height:100%;display:block;}
 
-/* タイトル・ブランド */
 .brand{
-  position:fixed; top:20px; left:24px; z-index:3;
-  display:flex; flex-direction:column; gap:2px;
-  pointer-events:none;
-}
-.brand-title{
+  position:fixed; top:20px; left:24px;
   font-family:'Shippori Mincho',serif;
-  font-size:20px; font-weight:700;
-  letter-spacing:.06em;
+  font-size:18px;
+  letter-spacing:.05em;
   color:var(--text);
-  display:flex; align-items:center; gap:8px;
-}
-.brand-badge{
-  font-family:'Zen Kaku Gothic New',sans-serif;
-  font-size:10px; font-weight:700; color:var(--gold);
-  border:1px solid rgba(243,202,101,0.5); border-radius:4px;
-  padding:1px 6px; letter-spacing:.04em;
-}
-.brand-sub{font-size:11px; color:var(--muted); letter-spacing:.05em;}
-
-/* ヘッダー操作ボタン群 */
-.top-actions{
-  position:fixed; top:18px; right:20px; z-index:3;
-  display:flex; gap:8px; align-items:center;
-}
-.icon-btn{
-  background:var(--panel); border:1px solid var(--border);
-  color:var(--text); border-radius:999px;
-  width:36px; height:36px;
-  display:flex; align-items:center; justify-content:center;
-  cursor:pointer; font-size:14px;
-  backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
-  transition:all .2s ease;
-}
-.icon-btn:hover{
-  background:rgba(244,237,224,0.15); border-color:var(--gold);
+  opacity:.9;
+  z-index:2;
 }
 
-/* 下部UIオーバーレイ */
 .ui-overlay{
-  position:fixed; left:0; right:0; bottom:0; z-index:3;
+  position:fixed; left:0; right:0; bottom:0;
+  z-index:2;
   padding:20px 20px calc(20px + env(safe-area-inset-bottom));
-  background:linear-gradient(to top, rgba(11,18,32,0.92) 0%, rgba(11,18,32,0.7) 60%, transparent 100%);
-  display:flex; flex-direction:column; align-items:center;
+  background:linear-gradient(to top, rgba(11,18,32,0.85), rgba(11,18,32,0));
 }
 
-/* 打ち上げ結果カード */
-.result-card{
-  width:100%; max-width:520px; text-align:center; margin-bottom:12px;
-  display:none;
+.caption{
+  max-width:480px; margin:0 auto 14px;
+  text-align:center;
+  font-family:'Shippori Mincho',serif;
+  font-size:17px;
+  color:var(--gold);
+  opacity:0;
+  transition:opacity .8s ease;
 }
-.result-card.show{display:block;}
-.hanabi-name{
-  font-family:'Shippori Mincho',serif; font-size:13px; font-weight:600;
-  letter-spacing:.12em; color:var(--gold); margin-bottom:4px;
-}
-.caption-text{
-  font-family:'Shippori Mincho',serif; font-size:19px; font-weight:700;
-  line-height:1.5; letter-spacing:.05em; color:var(--text); margin:0 0 4px;
-  text-shadow:0 2px 10px rgba(0,0,0,0.8);
-}
-.reason-text{font-size:12px; color:var(--muted); line-height:1.5; margin-bottom:8px;}
+.caption.show{opacity:1;}
 
-/* クイック想いタグ */
-.preset-chips{
-  display:flex; flex-wrap:wrap; justify-content:center; gap:6px;
-  margin-bottom:10px; max-width:500px;
-}
-.chip{
-  background:rgba(244,237,224,0.08); border:1px solid rgba(244,237,224,0.14);
-  border-radius:999px; padding:3px 12px; font-size:11px; color:var(--muted);
-  cursor:pointer; transition:all .2s ease;
-}
-.chip:hover{
-  background:rgba(243,202,101,0.15); border-color:var(--gold); color:var(--gold);
-}
-
-/* 入力コントロールバー */
 .control-bar{
-  width:100%; max-width:480px; display:flex; gap:8px; align-items:center;
-  background:var(--panel); border:1px solid var(--border); border-radius:999px;
-  padding:6px 6px 6px 16px; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  max-width:480px; margin:0 auto;
+  display:flex; gap:8px;
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:999px;
+  padding:8px 8px 8px 18px;
+  backdrop-filter:blur(6px);
 }
-.control-bar:focus-within{border-color:var(--gold);}
 #wish{
   flex:1; background:transparent; border:none; outline:none;
   color:var(--text); font-family:inherit; font-size:14px;
@@ -119,21 +69,40 @@ body{
 #wish::placeholder{color:var(--muted);}
 
 button.primary{
-  background:var(--ember); color:var(--text); border:none; border-radius:999px;
-  padding:9px 22px; font-family:inherit; font-size:14px; font-weight:700;
-  cursor:pointer; white-space:nowrap; transition:all .2s ease;
+  background:var(--ember);
+  color:var(--text);
+  border:none; border-radius:999px;
+  padding:10px 22px;
+  font-family:inherit; font-size:14px;
+  cursor:pointer;
+  white-space:nowrap;
 }
 button.primary:hover{background:#a83022;}
-button.primary:disabled{opacity:.5; cursor:not-allowed;}
+button.primary:disabled{opacity:.5;cursor:not-allowed;}
+
+.error{
+  max-width:480px;margin:8px auto 0;text-align:center;
+  color:var(--gold); font-size:12px; opacity:.85;
+}
+.hint{
+  max-width:480px;margin:6px auto;text-align:center;
+  color:var(--muted); font-size:11px;
+}
 
 .mic-btn{
-  background:transparent; border:1px solid var(--border); color:var(--text);
-  border-radius:999px; width:36px; height:36px;
+  background:transparent;
+  border:1px solid var(--border);
+  color:var(--text);
+  border-radius:999px;
+  width:38px; height:38px;
   display:flex; align-items:center; justify-content:center;
-  cursor:pointer; flex-shrink:0; font-size:15px;
+  cursor:pointer;
+  flex-shrink:0;
+  font-size:15px;
 }
 .mic-btn.listening{
-  background:var(--ember); border-color:var(--ember);
+  background:var(--ember);
+  border-color:var(--ember);
   animation:pulse 1.1s ease-in-out infinite;
 }
 @keyframes pulse{
@@ -141,425 +110,414 @@ button.primary:disabled{opacity:.5; cursor:not-allowed;}
   50%{box-shadow:0 0 0 8px rgba(193,57,44,0);}
 }
 
-.sub-actions{display:flex; gap:10px; justify-content:center; margin-top:8px;}
-.action-btn{
-  background:rgba(244,237,224,0.08); border:1px solid var(--border);
-  color:var(--text); border-radius:999px; padding:6px 16px; font-size:12px;
-  cursor:pointer; transition:all .2s ease;
-}
-.action-btn:hover{background:rgba(244,237,224,0.18); border-color:var(--gold); color:var(--gold);}
-
-.footer-meta{font-size:11px; color:var(--muted); margin-top:8px; text-align:center;}
-.error-msg{color:#f87171; font-size:12px; margin-top:6px; text-align:center; display:none;}
-.error-msg.show{display:block;}
-
-/* モーダル */
-.modal-backdrop{
-  position:fixed; inset:0; z-index:10; background:rgba(0,0,0,0.7);
-  display:none; align-items:center; justify-content:center; padding:24px;
-}
-.modal-card{
-  max-width:440px; width:100%;
-  background:#141f33; border:1px solid var(--border); border-radius:16px;
-  padding:26px 24px; color:var(--text); box-shadow:0 16px 40px rgba(0,0,0,0.8);
-}
-.modal-card h2{
-  font-family:'Shippori Mincho',serif; font-size:19px; color:var(--gold);
-  margin:0 0 12px;
-}
-.modal-card p{font-size:13px; line-height:1.9; color:var(--muted); margin:0 0 16px;}
-.modal-card strong{color:var(--text);}
-.modal-card button.close{
-  background:var(--ember); color:var(--text); border:none;
-  border-radius:999px; padding:8px 22px; font-size:13px; font-weight:600; cursor:pointer; float:right;
+.mute-btn{
+  position:fixed; top:18px; right:24px; z-index:2;
+  background:transparent; border:1px solid var(--border);
+  color:var(--text); border-radius:999px;
+  width:34px; height:34px;
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer; font-size:14px;
 }
 
-#flash-overlay{
-  position:fixed; inset:0; z-index:2; background:#fff; opacity:0;
-  pointer-events:none; transition:opacity .12s ease-out;
-}
-
-@media (max-width:520px){
+@media (max-width:420px){
   .control-bar{flex-wrap:wrap;}
-  #wish{flex:1 1 100%; margin-bottom:4px;}
+  #wish{flex:1 1 100%; order:1;}
   .mic-btn{order:2;}
-  button.primary{order:3; flex:1 1 auto;}
+  button.primary{order:3; flex:1 1 100%; margin-top:8px;}
 }
 </style>
 </head>
 <body>
 
-<div id="flash-overlay"></div>
 <canvas id="sky"></canvas>
+<div class="brand">ひとつだけの花火</div>
+<button class="mute-btn" id="btn-mute" aria-label="音を消す/出す" title="音を消す/出す">🔊</button>
 
-<div class="brand">
-  <div class="brand-title">
-    ひとつだけの花火
-    <span class="brand-badge">テーマ「越」</span>
-  </div>
-  <div class="brand-sub">越後長岡・祈りと再生のAI花火</div>
-</div>
-
-<div class="top-actions">
-  <button class="icon-btn" id="btn-demo" aria-label="自動鑑賞モード" title="夜空の自動鑑賞モード">🎆</button>
-  <button class="icon-btn" id="btn-info" aria-label="このアプリについて" title="このアプリについて">ⓘ</button>
-  <button class="icon-btn" id="btn-mute" aria-label="音の入切" title="音の入切">🔊</button>
-</div>
-
-<!-- モーダル（display制御で100%確実に開閉） -->
-<div class="modal-backdrop" id="info-modal">
-  <div class="modal-card">
-    <h2>「越」と、この花火について</h2>
-    <p>長岡花火の白眉「フェニックス」は、長岡空襲、そして2004年の中越地震という未曾有の災禍を<strong>「越えて」</strong>立ち上がった人々の不屈の祈りから生まれました。長岡にとって「越」とは、単なる地名ではなく、幾度倒れても立ち上がる精神そのものです。</p>
-    <p>本作品は、あなたの「今の想い・願い・越えたい壁」をGeminiが解釈し、長岡花火の伝統美（芯入り二重咲き・色の変化・錦冠菊の余韻）を再現した世界に一発だけの花火を夜空と信濃川の水面に咲かせます。光と音が届く時間差、川面の揺らぎ、人々の想いが交差する連帯の夜空をお楽しみください。</p>
-    <button class="close" id="btn-info-close">閉じる</button>
-  </div>
-</div>
-
-<!-- メインUI -->
 <div class="ui-overlay">
-  <div class="result-card" id="result-card">
-    <div class="hanabi-name" id="hanabi-name">八重芯変化菊 宵の祈り</div>
-    <div class="caption-text" id="caption-text"></div>
-    <div class="reason-text" id="reason-text"></div>
-    <div class="sub-actions">
-      <button class="action-btn" id="btn-save">📷 花火短冊を保存する</button>
-      <button class="action-btn" id="btn-again">✨ もう一発上げる</button>
-    </div>
-  </div>
-
-  <div class="preset-chips" id="preset-chips">
-    <div class="chip" data-wish="失敗を恐れず、新しい一歩を踏み出したい">#新しい一歩</div>
-    <div class="chip" data-wish="震災と復興の歩みを未来へつなぎたい">#復興と未来</div>
-    <div class="chip" data-wish="大切な人の笑顔と平穏がずっと続きますように">#大切な人へ</div>
-    <div class="chip" data-wish="目の前の高い壁を越えて、自分に勝ちたい">#限界を越える</div>
-  </div>
-
-  <div class="control-bar" id="control-bar">
-    <input type="text" id="wish" maxlength="80" aria-label="今の気持ちや願い" placeholder="今の気持ちや願いを一言で（マイク入力可）">
+  <div class="caption" id="caption"></div>
+  <div class="hint">例：「新しい一歩を踏み出したい」のように、ひとこと。マイクでも話せます。</div>
+  <div class="control-bar">
+    <input type="text" id="wish" maxlength="60" aria-label="今の気持ちや願い" placeholder="今の気持ちや願いを一言で">
     <button class="mic-btn" id="btn-mic" aria-label="音声入力" title="音声入力">🎤</button>
     <button class="primary" id="btn-launch">打ち上げる</button>
   </div>
-  <div class="error-msg" id="error">一言、気持ちや願いを入れてください。</div>
-  <div class="footer-meta" id="meta-text">信濃川の川面に映る、あなただけの一期一会の光。</div>
+  <div class="error" id="error" hidden></div>
+  <div class="hint">越後・長岡花火の「フェニックス」にちなんだ、あなただけの一発。</div>
 </div>
 
 <script>
-const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbzwXMPAbbVKmH3aXdiKN1gNrIrA0Hh6BElec7Vz_fUROZRB9DF-DAGumH87yXncQNbM8A/exec';
+const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbzTYS8aPXkIyuP_KSv5PU4TCLh4ALYyyKmUI1ffcNDUsUmZMnAZ518vKhLSxGq8WzfL6g/exec';
 
 const canvas = document.getElementById('sky');
 const ctx = canvas.getContext('2d');
-
-// 「花火短冊」用長時間露光オフスクリーンCanvas
-const snapshotCanvas = document.createElement('canvas');
-const snapCtx = snapshotCanvas.getContext('2d');
-let snapshotReady = false;
-
 let W, H, DPR;
-
 function resize(){
   DPR = Math.min(window.devicePixelRatio || 1, 2);
-  W = window.innerWidth;
-  H = window.innerHeight;
-  canvas.width = W * DPR;
-  canvas.height = H * DPR;
-  canvas.style.width = W + 'px';
-  canvas.style.height = H + 'px';
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = W * DPR; canvas.height = H * DPR;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-
-  snapshotCanvas.width = canvas.width;
-  snapshotCanvas.height = canvas.height;
-  snapCtx.setTransform(DPR, 0, 0, DPR, 0, 0);
-
-  initStars();
 }
 window.addEventListener('resize', resize);
+resize();
 
 function rand(min, max){ return Math.random() * (max - min) + min; }
 function pick(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
 
-// ---- 星空（元コードの美しい瞬き星空を100%復元） ----
-const stars = [];
-function initStars(){
-  stars.length = 0;
-  const count = 90;
-  for(let i = 0; i < count; i++){
-    stars.push({
-      x: Math.random() * W,
-      y: Math.random() * H * 0.72,
-      r: Math.random() * 1.6 + 0.8,
-      phase: Math.random() * Math.PI * 2,
-      speed: 0.4 + Math.random() * 0.6
-    });
-  }
-}
-
-function drawStars(targetCtx, now, isSnapshot = false){
-  for(const s of stars){
-    const twinkle = isSnapshot ? 0.9 : (0.5 + 0.5 * Math.sin((now / 1000) * s.speed + s.phase));
-    targetCtx.globalAlpha = isSnapshot ? 0.75 : (0.35 + twinkle * 0.55);
-    targetCtx.fillStyle = '#f4ede0';
-    targetCtx.shadowColor = '#f4ede0';
-    targetCtx.shadowBlur = 4;
-    targetCtx.beginPath();
-    targetCtx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-    targetCtx.fill();
-  }
-  targetCtx.shadowBlur = 0;
-  targetCtx.globalAlpha = 1;
-}
-
-function getRiverY(){ return H * 0.76; }
-
-function drawRiverAndHills(targetCtx){
-  const ry = getRiverY();
-
-  // 遠景の山並み
-  targetCtx.fillStyle = 'rgba(6, 11, 23, 0.7)';
-  targetCtx.beginPath();
-  targetCtx.moveTo(0, ry);
-  targetCtx.lineTo(0, ry - 16);
-  targetCtx.bezierCurveTo(W * 0.25, ry - 28, W * 0.4, ry - 12, W * 0.6, ry - 22);
-  targetCtx.bezierCurveTo(W * 0.75, ry - 26, W * 0.88, ry - 14, W, ry - 18);
-  targetCtx.lineTo(W, ry);
-  targetCtx.closePath();
-  targetCtx.fill();
-
-  // 信濃川水面（半透明で夜空の奥深さを維持）
-  const riverGrad = targetCtx.createLinearGradient(0, ry, 0, H);
-  riverGrad.addColorStop(0, 'rgba(7, 15, 33, 0.45)');
-  riverGrad.addColorStop(1, 'rgba(4, 8, 18, 0.8)');
-  targetCtx.fillStyle = riverGrad;
-  targetCtx.fillRect(0, ry, W, H - ry);
-
-  targetCtx.strokeStyle = 'rgba(243,202,101,0.1)';
-  targetCtx.lineWidth = 1;
-  targetCtx.beginPath();
-  targetCtx.moveTo(0, ry);
-  targetCtx.lineTo(W, ry);
-  targetCtx.stroke();
-}
-
-function initSnapshotBackground(){
-  snapCtx.clearRect(0, 0, snapshotCanvas.width, snapshotCanvas.height);
-  snapCtx.fillStyle = '#0b1220';
-  snapCtx.fillRect(0, 0, snapshotCanvas.width, snapshotCanvas.height);
-  drawStars(snapCtx, performance.now(), true);
-  drawRiverAndHills(snapCtx);
-  snapshotReady = true;
-}
-
-// ---- Web Audio API（音消え完全防止設計） ----
+// ---- 効果音 (Web Audio APIで合成。音声ファイルは使わない) ----
 let soundOn = true;
 let audioCtx = null;
-let cachedNoiseBuffer = null;
-
 function getAudioCtx(){
-  if(!audioCtx){
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    if(AudioContextClass){
-      audioCtx = new AudioContextClass();
-    }
-  }
+  if(!audioCtx){ audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+  if(audioCtx.state === 'suspended'){ audioCtx.resume(); }
   return audioCtx;
 }
-
-function unlockAudio(){
+function playLaunch(){
   if(!soundOn) return;
-  try{
-    const actx = getAudioCtx();
-    if(actx && actx.state === 'suspended'){
-      actx.resume();
-    }
-  }catch(e){}
+  const ctx = getAudioCtx();
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(280, now);
+  osc.frequency.exponentialRampToValueAtTime(900, now + 0.5);
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.15, now + 0.05);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(now); osc.stop(now + 0.6);
 }
-
-function getNoiseBuffer(actx){
-  if(cachedNoiseBuffer && cachedNoiseBuffer.sampleRate === actx.sampleRate){
-    return cachedNoiseBuffer;
-  }
-  const bLen = Math.floor(actx.sampleRate * 1.1);
-  const b = actx.createBuffer(1, bLen, actx.sampleRate);
-  const d = b.getChannelData(0);
-  for(let i = 0; i < bLen; i++){
-    d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bLen, 2.2);
-  }
-  cachedNoiseBuffer = b;
-  return b;
-}
-
-function playLaunchSound(){
+function playExplosion(intensity){
   if(!soundOn) return;
-  unlockAudio();
-  try{
-    const actx = getAudioCtx();
-    if(!actx || actx.state === 'suspended') return;
-    const now = actx.currentTime;
-    const osc = actx.createOscillator();
-    const gain = actx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(300, now);
-    osc.frequency.exponentialRampToValueAtTime(1050, now + 0.6);
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.linearRampToValueAtTime(0.14, now + 0.08);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.65);
-    osc.connect(gain).connect(actx.destination);
-    osc.start(now);
-    osc.stop(now + 0.7);
-  }catch(e){}
+  intensity = intensity || 1;
+  const ctx = getAudioCtx();
+  const now = ctx.currentTime;
+
+  const thump = ctx.createOscillator();
+  const thumpGain = ctx.createGain();
+  thump.type = 'sine';
+  thump.frequency.setValueAtTime(90, now);
+  thump.frequency.exponentialRampToValueAtTime(35, now + 0.3);
+  thumpGain.gain.setValueAtTime(0.35 * intensity, now);
+  thumpGain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+  thump.connect(thumpGain).connect(ctx.destination);
+  thump.start(now); thump.stop(now + 0.4);
+
+  const bufferSize = ctx.sampleRate * 1.2;
+  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for(let i = 0; i < bufferSize; i++){ data[i] = (Math.random()*2 - 1) * Math.pow(1 - i/bufferSize, 2); }
+  const noise = ctx.createBufferSource();
+  noise.buffer = buffer;
+  const noiseFilter = ctx.createBiquadFilter();
+  noiseFilter.type = 'bandpass';
+  noiseFilter.frequency.value = 1800;
+  noiseFilter.Q.value = 0.6;
+  const noiseGain = ctx.createGain();
+  noiseGain.gain.setValueAtTime(0.25 * intensity, now);
+  noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 1.1);
+  noise.connect(noiseFilter).connect(noiseGain).connect(ctx.destination);
+  noise.start(now);
 }
 
-function playExplosionSound(intensity = 1.0){
-  if(!soundOn) return;
-  unlockAudio();
-  try{
-    const actx = getAudioCtx();
-    if(!actx || actx.state === 'suspended') return;
-    const now = actx.currentTime;
-
-    const subOsc = actx.createOscillator();
-    const subGain = actx.createGain();
-    subOsc.type = 'sine';
-    subOsc.frequency.setValueAtTime(85, now);
-    subOsc.frequency.exponentialRampToValueAtTime(28, now + 0.45);
-    subGain.gain.setValueAtTime(0.48 * intensity, now);
-    subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.52);
-    subOsc.connect(subGain).connect(actx.destination);
-    subOsc.start(now);
-    subOsc.stop(now + 0.55);
-
-    const b = getNoiseBuffer(actx);
-    const noise = actx.createBufferSource();
-    noise.buffer = b;
-    const filter = actx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(1100, now);
-    filter.frequency.exponentialRampToValueAtTime(160, now + 0.75);
-    const nGain = actx.createGain();
-    nGain.gain.setValueAtTime(0.32 * intensity, now);
-    nGain.gain.exponentialRampToValueAtTime(0.001, now + 1.0);
-    noise.connect(filter).connect(nGain).connect(actx.destination);
-    noise.start(now);
-  }catch(e){}
-}
-
-function triggerFlash(strength = 0.3){
-  const el = document.getElementById('flash-overlay');
-  el.style.opacity = String(strength);
-  setTimeout(() => { el.style.opacity = '0'; }, 110);
-}
-
-// ---- パーティクル物理シミュレーション ----
-class HanabiParticle {
-  constructor(x, y, vx, vy, startColor, endColor, life, size, physics = {}){
-    this.x = x; this.y = y;
-    this.vx = vx; this.vy = vy;
-    this.startColor = startColor;
-    this.endColor = endColor || startColor;
-    this.life = life;
-    this.maxLife = life;
-    this.size = size;
-    this.gravity = physics.gravity ?? 65;
-    this.dragX = physics.dragX ?? 0.986;
-    this.dragY = physics.dragY ?? 0.990;
-    this.strobe = physics.strobe || false;
-    this.twinkle = physics.twinkle || false;
+class Particle{
+  constructor(x, y, vx, vy, color, life, size, physics){
+    this.x = x; this.y = y; this.vx = vx; this.vy = vy;
+    this.color = color; this.life = life; this.maxLife = life;
+    this.size = size || 2;
+    physics = physics || {};
+    this.gravity = physics.gravity ?? 70;
+    this.dragX = physics.dragX ?? 0.985;
+    this.dragY = physics.dragY ?? 0.99;
   }
   update(dt){
     this.vy += this.gravity * dt;
-    this.vx *= this.dragX;
-    this.vy *= this.dragY;
-    this.x += this.vx * dt;
-    this.y += this.vy * dt;
+    this.vx *= this.dragX; this.vy *= this.dragY;
+    this.x += this.vx * dt; this.y += this.vy * dt;
     this.life -= dt;
   }
-  draw(targetCtx, isReflection = false){
-    if(this.strobe && Math.sin(this.life * 40) < 0) return;
-    const progress = 1 - Math.max(this.life / this.maxLife, 0);
-    const alpha = (1 - progress) * (isReflection ? 0.35 : 1.0);
-    if(alpha <= 0.01) return;
-
-    const color = progress > 0.45 ? this.endColor : this.startColor;
-
-    targetCtx.save();
-    targetCtx.globalAlpha = alpha;
-    targetCtx.fillStyle = color;
-    targetCtx.shadowColor = color;
-    targetCtx.shadowBlur = isReflection ? 6 : (this.twinkle ? 22 : 16);
-
-    let drawY = this.y;
-    if(isReflection){
-      const ry = getRiverY();
-      drawY = ry + (ry - this.y) * 0.65;
-    }
-
-    targetCtx.beginPath();
-    targetCtx.arc(this.x, drawY, Math.max(0.6, this.size * (1 - progress * 0.4)), 0, Math.PI * 2);
-    targetCtx.fill();
-    targetCtx.restore();
+  draw(ctx){
+    const t = Math.max(this.life / this.maxLife, 0);
+    ctx.globalAlpha = t;
+    ctx.fillStyle = this.color;
+    ctx.shadowColor = this.color;
+    ctx.shadowBlur = 22;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
   }
 }
 
-class HanabiRocket {
+class Rocket{
   constructor(x, targetY, onExplode){
-    this.x = x; this.y = getRiverY();
-    this.targetY = targetY;
-    this.vy = -rand(290, 360);
+    this.x = x; this.y = H; this.targetY = targetY;
+    this.vy = -rand(260, 320);
     this.onExplode = onExplode;
     this.dead = false;
   }
   update(dt){
     this.y += this.vy * dt;
-    particles.push(new HanabiParticle(
-      this.x + rand(-1.2, 1.2), this.y,
-      rand(-5, 5), rand(12, 28),
-      '#f3ca65', '#c1392b', 0.28, 1.6, {gravity:30}
-    ));
+    particles.push(new Particle(this.x + rand(-1,1), this.y, rand(-4,4), rand(10,20), 'rgba(244,237,224,0.6)', 0.25, 1.4));
     if(this.y <= this.targetY){
       this.dead = true;
       this.onExplode(this.x, this.y);
     }
   }
-  draw(targetCtx){
-    targetCtx.save();
-    targetCtx.fillStyle = '#fffdf7';
-    targetCtx.shadowColor = '#f3ca65';
-    targetCtx.shadowBlur = 10;
-    targetCtx.beginPath();
-    targetCtx.arc(this.x, this.y, 2.5, 0, Math.PI * 2);
-    targetCtx.fill();
-    targetCtx.restore();
+  draw(ctx){
+    ctx.fillStyle = '#f4ede0';
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, 2, 0, Math.PI * 2);
+    ctx.fill();
   }
 }
 
 let particles = [];
 let rockets = [];
 
-function burstPeony(x, y, sColor, eColor){
+function burstPeony(x, y, colors){
   const n = 150;
   for(let i = 0; i < n; i++){
-    const angle = (i / n) * Math.PI * 2 + rand(-0.04, 0.04);
-    const speed = rand(150, 350);
-    particles.push(new HanabiParticle(
-      x, y, Math.cos(angle)*speed, Math.sin(angle)*speed,
-      sColor, eColor, rand(1.3, 1.9), rand(2.4, 3.8),
-      {gravity:50, dragX:0.988, dragY:0.992}
-    ));
+    const angle = (i / n) * Math.PI * 2 + rand(-0.05, 0.05);
+    const speed = rand(140, 340);
+    particles.push(new Particle(x, y, Math.cos(angle)*speed, Math.sin(angle)*speed, pick(colors), rand(1.1,1.8), rand(2.4,4.0), {gravity:55, dragX:0.988, dragY:0.992}));
+  }
+}
+function burstRing(x, y, colors){
+  const n = 100; const speed = rand(200, 260);
+  for(let i = 0; i < n; i++){
+    const angle = (i / n) * Math.PI * 2;
+    particles.push(new Particle(x, y, Math.cos(angle)*speed, Math.sin(angle)*speed, pick(colors), rand(1.3,1.8), rand(2.4,3.0), {gravity:55, dragX:0.988, dragY:0.992}));
+  }
+}
+function burstWillow(x, y, colors){
+  const n = 100;
+  for(let i = 0; i < n; i++){
+    const angle = (i / n) * Math.PI * 2 + rand(-0.08, 0.08);
+    const speed = rand(90, 190);
+    particles.push(new Particle(x, y, Math.cos(angle)*speed, Math.sin(angle)*speed*0.6, pick(colors), rand(2.2,3.0), rand(2.0,2.8), {gravity:150, dragX:0.99, dragY:0.995}));
+  }
+}
+function burstChrysanthemum(x, y, colors){
+  const n = 180;
+  for(let i = 0; i < n; i++){
+    const angle = (i / n) * Math.PI * 2 + rand(-0.03, 0.03);
+    const speed = rand(150, 320);
+    particles.push(new Particle(x, y, Math.cos(angle)*speed, Math.sin(angle)*speed, pick(colors), rand(1.6,2.3), rand(2.0,3.2), {gravity:55, dragX:0.988, dragY:0.992}));
+  }
+  // 二重咲きのきらめき (少し遅れて内側にもう一層)
+  setTimeout(() => {
+    const n2 = 70;
+    for(let i = 0; i < n2; i++){
+      const angle = (i / n2) * Math.PI * 2 + rand(-0.1, 0.1);
+      const speed = rand(60, 140);
+      particles.push(new Particle(x, y, Math.cos(angle)*speed, Math.sin(angle)*speed, pick(colors), rand(1.0,1.5), rand(1.4,2.0)));
+    }
+  }, 200);
+}
+function burstPhoenix(x, y, colors){
+  burstPeony(x, y, colors.slice(0, Math.max(2, colors.length-1)));
+  setTimeout(() => {
+    playExplosion(1.4);
+    const n = 220;
+    for(let i = 0; i < n; i++){
+      const angle = (i / n) * Math.PI * 2 + rand(-0.05, 0.05);
+      const speed = rand(180, 380);
+      particles.push(new Particle(x, y-10, Math.cos(angle)*speed, Math.sin(angle)*speed, pick(colors), rand(1.8,2.6), rand(2.6,4.2), {gravity:50, dragX:0.988, dragY:0.992}));
+    }
+  }, 420);
+}
+
+function explode(x, y, spec){
+  switch(spec.shape){
+    case 'ring': burstRing(x,y,spec.colors); break;
+    case 'willow': burstWillow(x,y,spec.colors); break;
+    case 'chrysanthemum': burstChrysanthemum(x,y,spec.colors); break;
+    case 'phoenix': burstPhoenix(x,y,spec.colors); break;
+    default: burstPeony(x,y,spec.colors);
   }
 }
 
-function burstChrysanthemum(x, y, sColor, eColor){
-  const outer = 170;
-  for(let i = 0; i < outer; i++){
-    const angle = (i / outer) * Math.PI * 2;
-    const speed = rand(160, 340);
-    particles.push(new HanabiParticle(
-      x, y, Math.cos(angle)*speed, Math.sin(angle)*speed,
-      sColor, eColor, rand(1.7, 2.4), rand(2.2, 3.2),
-      {gravity:48, dragX:0.989, dragY:0.993}
-    ));
+// 1回の入力につき、複数発を打ち上げる小さなショーにする(単発だと寂しいため)
+function launchFirework(spec){
+  const isPhoenix = spec.shape === 'phoenix';
+  const shots = isPhoenix ? 2 : (3 + Math.floor(Math.random() * 2));
+  const gap = isPhoenix ? 280 : 220;
+  for(let i = 0; i < shots; i++){
+    setTimeout(() => {
+      const x = rand(W*0.22, W*0.78);
+      const targetY = rand(H*0.22, H*0.42);
+      playLaunch();
+      rockets.push(new Rocket(x, targetY, (ex,ey) => {
+        explode(ex,ey,spec);
+        playExplosion(isPhoenix ? 1.1 : 0.85);
+      }));
+    }, i * gap + rand(-30, 30));
   }
+  return shots;
+}
+
+let lastTime = performance.now();
+function loop(now){
+  const dt = Math.min((now - lastTime) / 1000, 0.05);
+  lastTime = now;
+
+  ctx.fillStyle = 'rgba(11,18,32,0.22)';
+  ctx.fillRect(0, 0, W, H);
+
+  rockets.forEach(r => r.update(dt));
+  rockets = rockets.filter(r => !r.dead);
+  rockets.forEach(r => r.draw(ctx));
+
+  particles.forEach(p => p.update(dt));
+  particles = particles.filter(p => p.life > 0);
+  particles.forEach(p => p.draw(ctx));
+
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+const input = document.getElementById('wish');
+const btn = document.getElementById('btn-launch');
+const captionEl = document.getElementById('caption');
+const errorEl = document.getElementById('error');
+
+const DEFAULT_COLORS = ['#e8b959', '#c1392b', '#f4ede0'];
+const SHAPES = ['peony','willow','ring','chrysanthemum','phoenix'];
+const FALLBACK_CAPTIONS = [
+  '小さな一歩が、大きな花になる。',
+  '灰の中から、また上がる。',
+  '越えた先に、次の光がある。',
+  '沈んだ分だけ、高く上がる。',
+  '今日の願いを、光にのせて。',
+  '暗闇があるから、光は際立つ。',
+  'ここからまた、始まっていく。',
+  '風が変わる、その前触れ。',
+  '一瞬でも、確かに咲いた。',
+  '越えるたび、少し軽くなる。'
+];
+const FALLBACK_CAPTIONS_EN = [
+  'From the ashes, rising once more.',
+  'One small wish, one bright sky.',
+  'What falls returns as light.',
+  'Beyond the dark, a new spark.',
+  'Every crossing leaves you brighter.',
+  'Here begins another chapter.'
+];
+const FALLBACK_PALETTES = [
+  ['#e8b959','#c1392b','#f4ede0'],
+  ['#7fb0c9','#e8b959','#f4ede0'],
+  ['#c1392b','#e8b959','#8b1e3f']
+];
+
+// 日本語(ひらがな・カタカナ・漢字)を含まなければ、英語など他言語とみなす簡易判定
+function looksJapanese(text){
+  return /[\u3040-\u30ff\u3400-\u9fff]/.test(text);
+}
+
+function sanitizeSpec(data){
+  let colors = Array.isArray(data.colors) ? data.colors.filter(c => /^#[0-9A-Fa-f]{6}$/.test(c)) : [];
+  if(colors.length < 2) colors = DEFAULT_COLORS;
+  const shape = SHAPES.includes(data.shape) ? data.shape : 'peony';
+  const caption = (typeof data.caption === 'string' && data.caption.trim()) ? data.caption.trim() : pick(FALLBACK_CAPTIONS);
+  return {colors, shape, caption};
+}
+
+async function callBackend(wish){
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 6000);
+  const res = await fetch(BACKEND_URL, {
+    method: 'POST',
+    headers: {'Content-Type': 'text/plain;charset=utf-8'},
+    body: JSON.stringify({wish}),
+    signal: controller.signal
+  });
+  clearTimeout(timeout);
+  return res.json();
+}
+
+btn.addEventListener('click', async () => {
+  const wish = input.value.trim();
+  errorEl.hidden = true;
+  if(!wish){
+    errorEl.textContent = '一言、気持ちや願いを入れてください。';
+    errorEl.hidden = false;
+    return;
+  }
+  btn.disabled = true; btn.textContent = '打ち上げ中…';
+  captionEl.classList.remove('show');
+
+  let spec;
+  try{
+    const data = await callBackend(wish);
+    spec = sanitizeSpec(data);
+  }catch(err){
+    // 通信できなくても、その場で見られる花火は出す(会場のWi-Fi不調対策)
+    const fallbackCaptions = looksJapanese(wish) ? FALLBACK_CAPTIONS : FALLBACK_CAPTIONS_EN;
+    spec = { colors: pick(FALLBACK_PALETTES), shape: pick(SHAPES), caption: pick(fallbackCaptions) };
+  }
+
+  launchFirework(spec);
+
   setTimeout(() => {
-    const inner = 65;
-    for(let i = 0; i < inner; i++){
-      const angle = (i / inner) * Math.PI * 2 + rand(-0.
+    captionEl.textContent = spec.caption;
+    captionEl.classList.add('show');
+  }, 1500);
+
+  setTimeout(() => {
+    btn.disabled = false; btn.textContent = '打ち上げる';
+  }, 3200);
+});
+
+input.addEventListener('keydown', e => { if(e.key === 'Enter'){ btn.click(); } });
+
+// ---- 音のオン/オフ ----
+const muteBtn = document.getElementById('btn-mute');
+muteBtn.addEventListener('click', () => {
+  soundOn = !soundOn;
+  muteBtn.textContent = soundOn ? '🔊' : '🔇';
+  if(soundOn) getAudioCtx(); // ユーザー操作のタイミングでAudioContextを起動/再開しておく
+});
+
+// ---- 音声入力 (Chrome の Web Speech API) ----
+const micBtn = document.getElementById('btn-mic');
+const SpeechRecognitionImpl = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+if(SpeechRecognitionImpl){
+  const recognition = new SpeechRecognitionImpl();
+  recognition.lang = 'ja-JP';
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
+  let listening = false;
+
+  recognition.addEventListener('result', (e) => {
+    let transcript = '';
+    for(let i = 0; i < e.results.length; i++){ transcript += e.results[i][0].transcript; }
+    input.value = transcript;
+  });
+  recognition.addEventListener('end', () => {
+    listening = false;
+    micBtn.classList.remove('listening');
+  });
+  recognition.addEventListener('error', () => {
+    listening = false;
+    micBtn.classList.remove('listening');
+  });
+
+  micBtn.addEventListener('click', () => {
+    if(listening){ recognition.stop(); return; }
+    input.value = '';
+    errorEl.hidden = true;
+    try{
+      recognition.start();
+      listening = true;
+      micBtn.classList.add('listening');
+    }catch(err){ /* 直前の認識がまだ終わっていない場合など */ }
+  });
+}else{
+  micBtn.hidden = true; // 音声認識に対応していないブラウザでは非表示
+}
+</script>
+</body>
+</html>
